@@ -21,7 +21,7 @@ jobs:
 
     steps:
     - name: Install Dependencies
-      run: sudo apt-get install -y libssl-dev libfuse3 libprotobuf-dev
+      run: sudo apt-get install -y libssl-dev libfuse3-dev libprotobuf-dev
 
     - uses: actions/checkout@v3
 
