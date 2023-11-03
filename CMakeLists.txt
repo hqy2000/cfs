@@ -11,6 +11,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${ProtoFiles})
 
 find_package(FUSE3 REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 add_executable(dcfs2 main.cpp ${PROTO_SRCS} ${PROTO_HDRS})
-target_link_libraries(dcfs2 ${Protobuf_LIBRARIES} ${FUSE3_LIBRARIES})
+target_link_libraries(dcfs2 ${Protobuf_LIBRARIES} ${FUSE3_LIBRARIES} OpenSSL::SSL)
