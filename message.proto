@@ -1,7 +1,50 @@
 syntax = "proto3";
 
-message Message {
-  bytes data = 1;
-  bytes signature = 2;
-  bytes prev = 3;
+// Everything defined here is contained inside Data Capsules, i.e. another universal write signature will be attached
+// outside of this message format.
+
+// Key to be used in CapsuleDB
+message Key {
+  oneof content {
+    ACLKey aclKey = 1;
+    DataKey dataKey = 2;
+  }
+}
+
+// Value to be used in CapsuleDB
+message Value {
+  oneof content {
+    ACLValue aclValue = 1;
+    DataValue dataValue = 2;
+  }
+}
+
+message ACLKey {
+  bytes writeId = 1; // associate each group of ACL values to a write
+}
+
+message DataKey {
+  repeated bytes path = 1; // ["folder1", "file1.txt"]
+  bool isFolder = 2; // whether it's a folder or not
+}
+
+message ACLValue {
+  repeated ACL acl = 1; // array with each represent an ACL for one user
+//  Signature signature = 1000;
+}
+
+message ACL {
+  bytes publicKey = 1; // public (write) key of a user
+  int32 uid = 2; // uid mapped to local user
+}
+
+message DataValue {
+  bytes data = 1; // content of the file
+  Signature signature = 1000; // signature signing the block, use user's key for singing.
+}
+
+message Signature {
+  bytes signature = 1;
+  ACLKey writer = 2; // originated from which writer
+  int32 userId = 3; // originated from which user
 }

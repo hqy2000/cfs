@@ -7,11 +7,12 @@
 #include "fuse3/fuse.h"
 #include <openssl/evp.h>
 #include <iomanip>
+#include <optional>
 
 
-struct fuse_operations dcfs2_fuse_oper{
-
-};
+//struct fuse_operations dcfs2_fuse_oper{
+//
+//};
 
 std::string digest_message(std::string data) {
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
@@ -29,14 +30,59 @@ std::string digest_message(std::string data) {
     return ss.str();
 }
 
+int put(const Key& key, const Value& value) {
+    return 0; // dummy return values for now.
+}
+
+std::optional<Value> get(const Key& key) {
+    return std::nullopt; // dummy return values for now.
+}
+
+void put_acl() {
+    Key key;
+    ACLKey aclKey;
+    aclKey.set_writeid("writer1");
+    key.set_allocated_aclkey(&aclKey);
+
+    Value value;
+    ACLValue aclValue;
+    ACL* acl = aclValue.add_acl();
+    acl->set_publickey("8a8e1239773");
+    acl->set_uid(1001);
+    value.set_allocated_aclvalue(&aclValue);
+
+    put(key, value);
+}
+
+void put_data() {
+    Key key;
+    DataKey dataKey;
+    dataKey.set_path(0, "folder");
+    dataKey.set_path(1, "example.txt");
+    dataKey.set_isfolder(false);
+    key.set_allocated_datakey(&dataKey);
+
+    Value value;
+    DataValue dataValue;
+    dataValue.set_data("example txt data");
+    Signature signature;
+    signature.set_signature(digest_message(dataValue.data())); // todo: replace this with public key signing.
+    signature.set_allocated_writer(nullptr); // todo: change to writer acl key
+    signature.set_userid(1001);
+    dataValue.set_allocated_signature(&signature);
+    value.set_allocated_datavalue(&dataValue);
+
+    put(key, value);
+}
+
 int main(int argc, char *argv[]) {
-    std::cout << "dcfs2" << std::endl;
+    std::cout << "dcfs2 middleware" << std::endl;
 
-    Message message;
-    message.set_data("test");
-    message.set_signature(digest_message(message.data()));
-    std::cout << "data: " << message.data() << std::endl;
-    std::cout << "hash: " << message.signature() << std::endl;
 
-    return fuse_main(argc, argv, &dcfs2_fuse_oper, nullptr);
+    put_acl();
+    put_data();
+
+
+
+    return 0;
 }
