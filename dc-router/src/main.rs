@@ -4,6 +4,7 @@ use crate::server::server::MyDataCapsule;
 
 mod router;
 mod server;
+mod client;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

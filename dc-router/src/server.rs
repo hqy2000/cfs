@@ -12,9 +12,9 @@ pub mod server {
     }
 
     fn calculate_hash<T: Hash>(t: &T) -> u64 {
-        let mut s = Sha256
-        t.hash(&mut s);
-        return s.finish();
+        // let mut s = Sha256
+        // t.hash(&mut s);
+        return 0;
     }
 
     #[tonic::async_trait]
@@ -29,7 +29,7 @@ pub mod server {
 
         async fn put(&self, request: Request<PutRequest>) -> Result<Response<PutResponse>, Status> {
             println!("Got a put request: {:?}", request);
-            request.get_ref().block.unwrap().hash()
+            // request.get_ref().block.unwrap().hash()
 
             let reply = PutResponse {
                 success: true
