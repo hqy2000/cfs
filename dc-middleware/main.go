@@ -9,33 +9,43 @@ import (
 	"os"
 )
 
-func EncryptOAEP(secretMessage string, pubkey rsa.PublicKey) string {
+func EncryptOAEPData(secretMessage []byte, pubkey rsa.PublicKey) []byte {
 	label := []byte("OAEP Encrypted")
 	// crypto/rand.Reader is a good source of entropy for randomizing the
 	// encryption function.
 	rng := rand.Reader
-	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rng, &pubkey, []byte(secretMessage), label)
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rng, &pubkey, secretMessage, label)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error from encryption: %s\n", err)
-		return "Error from encryption"
+		return nil
 	}
-	return base64.StdEncoding.EncodeToString(ciphertext)
+	return ciphertext
 }
 
-func DecryptOAEP(cipherText string, privKey rsa.PrivateKey) string {
-	ct, _ := base64.StdEncoding.DecodeString(cipherText)
+func DecryptOAEPData(cipherText []byte, privKey rsa.PrivateKey) []byte {
 	label := []byte("OAEP Encrypted")
 
 	// crypto/rand.Reader is a good source of entropy for blinding the RSA
 	// operation.
 	rng := rand.Reader
-	plaintext, err := rsa.DecryptOAEP(sha256.New(), rng, &privKey, ct, label)
+	plaintext, err := rsa.DecryptOAEP(sha256.New(), rng, &privKey, cipherText, label)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error from decryption: %s\n", err)
-		return "Error from Decryption"
+		return nil
 	}
 	fmt.Printf("Plaintext: %s\n", string(plaintext))
 
+	return plaintext
+}
+
+func EncryptOAEP(secretMessage string, pubkey rsa.PublicKey) string {
+	ciphertext := EncryptOAEPData([]byte(secretMessage), pubkey)
+	return base64.StdEncoding.EncodeToString(ciphertext)
+}
+
+func DecryptOAEP(cipherText string, privKey rsa.PrivateKey) string {
+	ct, _ := base64.StdEncoding.DecodeString(cipherText)
+	plaintext := DecryptOAEPData(ct, privKey)
 	return string(plaintext)
 }
 
