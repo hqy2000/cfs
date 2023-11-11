@@ -13,6 +13,3 @@ _deps
 cmake-build-debug
 .idea
 .DS_Store
-dc-router/.idea/vcs.xml
-dc-router/.idea/modules.xml
-dc-router/.idea/dc-router.iml
