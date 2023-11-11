@@ -4,7 +4,7 @@ pub mod router {
     use std::collections::HashMap;
     use std::net::SocketAddr;
     use router_server::Router;
-    use tonic::{IntoRequest, Request, Response, Status};
+    use tonic::{Request, Response, Status};
 
     #[derive(Debug, Default)]
     pub struct MyRouter {
@@ -19,7 +19,7 @@ pub mod router {
         ) -> Result<Response<RouteReply>, Status> {
             println!("Got a routing request: {:?}", request);
 
-            let dest = &self.routes.get(&request.get_ref().destination);
+            // let dest = &self.routes.get(&request.get_ref().destination);
             let reply = RouteReply {
                 source: Vec::from([0]),
                 data: Vec::new()
