@@ -1,0 +1,45 @@
+syntax = "proto3";
+package data_capsule;
+
+message DataCapsuleServerData {
+  bytes id = 1;
+  bytes writePubKey = 1000;
+  map<string, DataCapsuleBlock> content = 2000;
+  repeated string leafs = 3000;
+}
+
+message DataCapsuleBlock {
+  string prevHash = 1;
+  bytes data = 2;
+  bytes signature = 3;
+}
+
+message GetRequest {
+  string blockHash = 1;
+}
+
+message GetResponse {
+  optional DataCapsuleBlock block = 1;
+}
+
+message PutRequest {
+  DataCapsuleBlock block = 1;
+  string hash = 2;
+}
+
+message PutResponse {
+  bool success = 1;
+}
+
+message LeafsRequest {
+}
+
+message LeafsResponse {
+  repeated string leafIds = 1;
+}
+
+service DataCapsule {
+  rpc Get (GetRequest) returns (GetResponse);
+  rpc Put (PutRequest) returns (PutResponse);
+  rpc Leafs (LeafsRequest) returns (LeafsResponse);
+}
