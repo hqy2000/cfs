@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+// This protobuf buffer is for gRPC communication between middleWare and server
+
+message WriteRequest {
+    bytes data = 1;
+    bytes signature = 2;
+}
