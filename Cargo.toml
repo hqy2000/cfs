@@ -7,11 +7,11 @@ edition = "2021"
 
 [[bin]] # Bin to run the gRPC server
 name = "server"
-path = "src/server.rs"
+path = "src/server/main.rs"
 
-[[bin]] # Bin to run the gRPC server
+[[bin]] # Bin to run the gRPC client
 name = "client"
-path = "src/client.rs"
+path = "src/client/main.rs"
 
 [dependencies]
 tonic = "0.10"
