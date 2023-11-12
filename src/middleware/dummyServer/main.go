@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	port = flag.Int("port", 50052, "The server port")
+	port = flag.Int("port", 50051, "The server port")
 )
 
 type server struct {
@@ -20,8 +20,8 @@ type server struct {
 }
 
 func (s *server) Write(ctx context.Context, in *pb.WriteRequestServer) (*pb.WriteReplyServer, error) {
-	dataString := in.GetData()
-	log.Printf("Received: %v", string(dataString))
+	log.Printf("Received: %v", string(in.GetData()))
+	log.Printf("Received: %v", string(in.GetSignature()))
 	replyHash := []byte("PathHash sent from server")
 	return &pb.WriteReplyServer{PathHash: replyHash}, nil
 }
