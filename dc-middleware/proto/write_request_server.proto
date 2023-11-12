@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+option go_package = "dcfs2/DCMiddleWare/proto";
+
+package write_request_server;
+
+service WriteServer {
+  // Send a write request
+  rpc Write (WriteRequestServer) returns (WriteReplyServer);
+}
+
+message WriteRequestServer {
+  bytes data = 1;
+  bytes signature = 2;
+}
+
+message WriteReplyServer {
+  bytes pathHash = 1;
+}
