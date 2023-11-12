@@ -6,9 +6,26 @@ use fuser::{
 use libc::ENOENT;
 use std::ffi::OsStr;
 use std::time::{Duration, UNIX_EPOCH};
+pub mod client {
+    tonic::include_proto!("data_capsule");
+    use tonic::Response;
+    use data_capsule_server::DataCapsule;
+    use data_capsule_client::DataCapsuleClient;
+
+    pub async fn get() -> Response<GetResponse> {
+        let mut client = DataCapsuleClient::connect(":9090909090").await;
+        let request = tonic::Request::new(GetRequest {
+            block_hash: "testhash".into(),
+        });
+        let response = client.get(request).await;
+        Ok(response)
+    }
+
+}
+
 
 const TTL: Duration = Duration::from_secs(1); // 1 second
-
+const SERVER_IP: String = String::from("http://127.0.0.1:9001");
 const HELLO_DIR_ATTR: FileAttr = FileAttr {
     ino: 1,
     size: 0,
@@ -47,9 +64,9 @@ const HELLO_TXT_ATTR: FileAttr = FileAttr {
     blksize: 512,
 };
 
-struct HelloFS;
+pub struct DCFS2;
 
-impl Filesystem for HelloFS {
+impl Filesystem for DCFS2 {
     fn lookup(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
         if parent == 1 && name.to_str() == Some("hello.txt") {
             reply.entry(&TTL, &HELLO_TXT_ATTR, 0);
@@ -59,11 +76,21 @@ impl Filesystem for HelloFS {
     }
 
     fn getattr(&mut self, _req: &Request, ino: u64, reply: ReplyAttr) {
+        // match ino {
+        //     1 => reply.attr(&TTL, &HELLO_DIR_ATTR),
+        //     2 => reply.attr(&TTL, &HELLO_TXT_ATTR),
+        //     _ => reply.error(ENOENT),
+        // }
+        // debug!("getattr(ino={})", ino);
         match ino {
-            1 => reply.attr(&TTL, &HELLO_DIR_ATTR),
-            2 => reply.attr(&TTL, &HELLO_TXT_ATTR),
-            _ => reply.error(ENOENT),
-        }
+            Some(attr) => {
+                reply.attr(&TTL, attr);// TODO
+            }
+            None => {
+                // error!("getattr: inode {} is not in filesystem's attributes", ino);
+                reply.error(ENOENT)
+            },
+        };
     }
 
     fn read(
@@ -78,7 +105,11 @@ impl Filesystem for HelloFS {
         reply: ReplyData,
     ) {
         if ino == 2 {
-            reply.data(&HELLO_TXT_CONTENT.as_bytes()[offset as usize..]);
+            // reply.data(&HELLO_TXT_CONTENT.as_bytes()[offset as usize..]);
+            let response = get();
+            reply.data(response.into_inner().block.as_bytes()[offset as usize..]);
+            println!("success: item was added to the inventory.");
+            // Ok(());
         } else {
             reply.error(ENOENT);
         }
@@ -144,5 +175,5 @@ fn main() {
     if matches.get_flag("allow-root") {
         options.push(MountOption::AllowRoot);
     }
-    fuser::mount2(HelloFS, mountpoint, &options).unwrap();
+    fuser::mount2(DCFS2, mountpoint, &options).unwrap();
 }
