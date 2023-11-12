@@ -5,7 +5,6 @@ use fuser::{
 use libc::ENOENT;
 use std::ffi::OsStr;
 use std::time::{Duration, UNIX_EPOCH};
-use futures::executor;
 use crate::client::client::get;
 
 pub mod client {
@@ -13,6 +12,7 @@ pub mod client {
     use data_capsule_server::DataCapsule;
     use data_capsule_client::DataCapsuleClient;
 
+    #[tokio::main]
     pub async fn get(hash: &str) -> Result<GetResponse, Box<dyn std::error::Error>> {
         let mut client = DataCapsuleClient::connect("http://[::1]:50051").await?;
         let request = tonic::Request::new(GetRequest {
@@ -45,8 +45,6 @@ const HELLO_DIR_ATTR: FileAttr = FileAttr {
     flags: 0,
     blksize: 512,
 };
-
-const HELLO_TXT_CONTENT: &str = "Hello World!\n";
 
 const HELLO_TXT_ATTR: FileAttr = FileAttr {
     ino: 2,
@@ -98,7 +96,7 @@ impl Filesystem for DCFS2 {
         reply: ReplyData,
     ) {
         if ino == 2 {
-            let response = executor::block_on(get("testhash"));
+            let response = get("testhash");
             reply.data(&response.unwrap().block.unwrap().data[offset as usize..]);
         } else {
             reply.error(ENOENT);

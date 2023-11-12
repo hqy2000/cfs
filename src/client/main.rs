@@ -4,7 +4,6 @@ use clap::{Arg, ArgAction, Command};
 use fuser::MountOption;
 use crate::client::DCFS2;
 
-#[tokio::main]
 fn main() {
     let matches = Command::new("hello")
         .author("Christopher Berner")

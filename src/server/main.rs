@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 content: HashMap::from(
                     [("testhash".to_string(), DataCapsuleBlock{
                         prev_hash: "".to_string(),
-                        data: Vec::from("hello world on server!"),
+                        data: Vec::from("dc server resp"),
                         signature: vec![],
                     })]
                 ),
