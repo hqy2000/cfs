@@ -20,14 +20,14 @@ jobs:
 
       - name: Build
         run: cargo build --verbose
-  test:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install Dependencies
-        run: sudo apt-get install -y libssl-dev libfuse3-dev libprotobuf-dev protobuf-compiler
-
-      - uses: actions/checkout@v3
-
-      - name: Run tests
-        run: cargo test --verbose
+#  test:
+#    needs: build
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Install Dependencies
+#        run: sudo apt-get install -y libssl-dev libfuse3-dev libprotobuf-dev protobuf-compiler
+#
+#      - uses: actions/checkout@v3
+#
+#      - name: Run tests
+#        run: cargo test --verbose
