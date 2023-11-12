@@ -1,0 +1,33 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Dependencies
+        run: sudo apt-get install -y libssl-dev libfuse3-dev libprotobuf-dev protobuf-compiler
+
+      - uses: actions/checkout@v3
+
+      - name: Build
+        run: cargo build --verbose
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Dependencies
+        run: sudo apt-get install -y libssl-dev libfuse3-dev libprotobuf-dev protobuf-compiler
+
+      - uses: actions/checkout@v3
+
+      - name: Run tests
+        run: cargo test --verbose
