@@ -5,7 +5,7 @@ use fuser::{
 use libc::ENOENT;
 use std::ffi::OsStr;
 use std::time::{Duration, UNIX_EPOCH};
-use crate::client::client::get;
+use crate::client::client::{get, getSize};
 
 pub mod client {
     tonic::include_proto!("data_capsule");
@@ -21,6 +21,13 @@ pub mod client {
         let response = client.get(request).await?;
 
         Ok(response.get_ref().clone())
+    }
+
+    pub fn getSize(hash: &str) -> usize {
+        let response = get(hash);
+        let size = response.unwrap().block.unwrap().data.len();
+        // println!("{}", size);
+        return size.clone();
     }
 
 }
@@ -64,6 +71,10 @@ const HELLO_TXT_ATTR: FileAttr = FileAttr {
     blksize: 512,
 };
 
+// pub struct Inode {
+//
+// }
+
 pub struct DCFS2;
 
 impl Filesystem for DCFS2 {
@@ -79,6 +90,13 @@ impl Filesystem for DCFS2 {
         match ino {
             1 => reply.attr(&TTL, &HELLO_DIR_ATTR),
             2 => reply.attr(&TTL, &HELLO_TXT_ATTR),
+            // 2 => {
+            //     let size: u64 = getSize("testhash") as u64;
+            //     let mut attr_copy = HELLO_TXT_ATTR.clone();
+            //     attr_copy.size = size;
+            //     println!("{}", size);
+            //     reply.attr(&TTL, &attr_copy)
+            // },
             _ => reply.error(ENOENT),
         }
         // debug!("getattr(ino={})", ino);
