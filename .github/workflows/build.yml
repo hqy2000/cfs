@@ -15,8 +15,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install Dependencies
+        run: sudo apt-get install -y libssl-dev libfuse3-dev libprotobuf-dev
+
       - uses: actions/checkout@v3
       - name: Build
         run: cargo build --verbose
+        
       - name: Run tests
         run: cargo test --verbose
