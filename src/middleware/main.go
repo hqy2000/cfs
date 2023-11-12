@@ -1,12 +1,21 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
+	"flag"
 	"fmt"
+	"log"
 	"os"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	pb "dcfs2/middleware/proto"
 )
 
 func EncryptOAEPData(secretMessage []byte, pubkey rsa.PublicKey) []byte {
@@ -64,5 +73,25 @@ func main() {
 	encryptedData := EncryptOAEP(secretData, userPublicKey)
 	DecryptOAEP(encryptedData, *userPrivateKey)
 	// Now that we ha ve the encryptedData we can send it to server
+
+	// Experimenting communication with server
+	data := []byte("DataSentFromMW")
+	signature := []byte("DummySignature")
+	addr := flag.String("addr", "localhost:50052", "the address to connect to")
+	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
+	c := pb.NewWriteServerClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	r, err := c.Write(ctx, &pb.WriteRequestServer{Data: data, Signature: signature})
+	if err != nil {
+		log.Fatalf("could not greet: %v", err)
+	}
+	pathHash := r.GetPathHash()
+	log.Printf("Receiving: %s", string(pathHash))
 
 }

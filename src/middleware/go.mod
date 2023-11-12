@@ -1,4 +1,4 @@
-module dcfs2/dc-middleware
+module dcfs2/middleware
 
 go 1.21.4
 
