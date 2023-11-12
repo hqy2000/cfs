@@ -7,7 +7,7 @@
 *.dll
 *.so
 *.dylib
-dc-middleware
+middleware
 
 # Test binary, built with `go test -c`
 *.test
