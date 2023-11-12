@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package middleware;
+
+service Middleware {
+  // Send a write request to dc_cap
+  rpc Put (PutMiddlewareRequest) returns (PutMiddlewareResponse);
+}
+
+message PutMiddlewareRequest {
+  bytes data = 1;
+  bytes signature = 2;
+}
+
+message PutMiddlewareResponse {
+  string hash = 1;
+}

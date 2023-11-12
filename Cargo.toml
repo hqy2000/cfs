@@ -5,13 +5,17 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[bin]] # Bin to run the gRPC server
+[[bin]]
 name = "server"
 path = "src/server/main.rs"
 
-[[bin]] # Bin to run the gRPC client
+[[bin]]
 name = "client"
 path = "src/client/main.rs"
+
+[[bin]]
+name = "middleware"
+path = "src/middleware/main.rs"
 
 [dependencies]
 tonic = "0.10"
