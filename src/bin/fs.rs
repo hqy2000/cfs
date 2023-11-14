@@ -1,5 +1,6 @@
 use clap::{Arg, ArgAction, Command};
 use fuser::MountOption;
+use lib::fs::DCFS2;
 
 fn main() {
     let matches = Command::new("hello")

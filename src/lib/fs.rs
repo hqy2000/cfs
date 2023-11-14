@@ -1,3 +1,4 @@
+use std::error::Error;
 use fuser::{
     FileAttr, FileType, Filesystem, ReplyAttr, ReplyData, ReplyDirectory, ReplyEntry,
     Request,
@@ -6,6 +7,8 @@ use libc::ENOENT;
 use std::ffi::OsStr;
 use std::time::{Duration, UNIX_EPOCH};
 use crate::client::get;
+use crate::proto::data_capsule::GetResponse;
+use crate::proto::block::data_capsule_block;
 
 const TTL: Duration = Duration::from_secs(1); // 1 second
 
@@ -83,8 +86,12 @@ impl Filesystem for DCFS2 {
         reply: ReplyData,
     ) {
         if ino == 2 {
-            let response = get("testhash");
-            reply.data(&response.unwrap().block.unwrap().data[offset as usize..]);
+            let response: Result<GetResponse, Box<dyn Error>> = get("testhash");
+            if let data_capsule_block::Block::Data(data) = response.unwrap().block.unwrap().block.unwrap() {
+                reply.data(&data.data[offset as usize..])
+            } else {
+                reply.error(ENOENT);
+            }
         } else {
             reply.error(ENOENT);
         }

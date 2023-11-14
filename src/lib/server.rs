@@ -8,7 +8,7 @@ use crate::proto::data_capsule::{DataCapsuleServerData, GetRequest, GetResponse,
 
 #[derive(Debug, Default)]
 pub struct MyDataCapsule {
-    pub(crate) data: Arc<Mutex<DataCapsuleServerData>>
+    pub data: Arc<Mutex<DataCapsuleServerData>>
 }
 
 #[tonic::async_trait]
@@ -30,7 +30,7 @@ impl DataCapsule for MyDataCapsule {
 
         let mut context = Context::new(&SHA256);
         context.update(&block.prev_hash.as_bytes());
-        context.update(&block.data);
+        // context.update(&block.block.into().); // TODO
         let hash = HEXLOWER.encode(context.finish().as_ref());
 
         let mut mutex = self.data.lock().await;

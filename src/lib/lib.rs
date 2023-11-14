@@ -1,5 +1,5 @@
-mod client;
-mod fs;
-mod middleware;
-mod server;
-mod proto;
+pub mod client;
+pub mod fs;
+pub mod middleware;
+pub mod server;
+pub mod proto;

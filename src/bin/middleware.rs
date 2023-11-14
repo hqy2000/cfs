@@ -1,8 +1,6 @@
 use tonic::transport::Server;
-use crate::middleware::middleware::middleware_server::MiddlewareServer;
-use crate::middleware::middleware::MyMiddleware;
-
-mod middleware;
+use lib::middleware::middleware::MyMiddleware;
+use lib::proto::middleware::middleware_server::MiddlewareServer;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

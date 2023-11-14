@@ -1,10 +1,12 @@
-mod server;
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tonic::transport::Server;
-use crate::server::MyDataCapsule;
+use lib::proto::block::data_capsule_block::Block;
+use lib::proto::block::{DataBlock, DataCapsuleBlock};
+use lib::proto::data_capsule::data_capsule_server::DataCapsuleServer;
+use lib::proto::data_capsule::DataCapsuleServerData;
+use lib::server::MyDataCapsule;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,7 +19,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 content: HashMap::from(
                     [("testhash".to_string(), DataCapsuleBlock{
                         prev_hash: "".to_string(),
-                        data: Vec::from("dc server resp"),
+                        block: Some(Block::Data(DataBlock{
+                            data: Vec::from("dc server resp")
+                        })),
                         signature: vec![],
                     })]
                 ),

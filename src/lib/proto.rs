@@ -1,4 +1,4 @@
-mod block {
+pub mod block {
     tonic::include_proto!("block");
 }
 pub mod data_capsule {
