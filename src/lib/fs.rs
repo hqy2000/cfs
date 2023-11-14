@@ -5,33 +5,7 @@ use fuser::{
 use libc::ENOENT;
 use std::ffi::OsStr;
 use std::time::{Duration, UNIX_EPOCH};
-use crate::client::client::{get, getSize};
-
-pub mod client {
-    tonic::include_proto!("data_capsule");
-    use data_capsule_server::DataCapsule;
-    use data_capsule_client::DataCapsuleClient;
-
-    #[tokio::main]
-    pub async fn get(hash: &str) -> Result<GetResponse, Box<dyn std::error::Error>> {
-        let mut client = DataCapsuleClient::connect("http://[::1]:50051").await?;
-        let request = tonic::Request::new(GetRequest {
-            block_hash: hash.to_string()
-        });
-        let response = client.get(request).await?;
-
-        Ok(response.get_ref().clone())
-    }
-
-    pub fn getSize(hash: &str) -> usize {
-        let response = get(hash);
-        let size = response.unwrap().block.unwrap().data.len();
-        // println!("{}", size);
-        return size.clone();
-    }
-
-}
-
+use crate::client::get;
 
 const TTL: Duration = Duration::from_secs(1); // 1 second
 
@@ -70,11 +44,6 @@ const HELLO_TXT_ATTR: FileAttr = FileAttr {
     flags: 0,
     blksize: 512,
 };
-
-// pub struct Inode {
-//
-// }
-
 pub struct DCFS2;
 
 impl Filesystem for DCFS2 {

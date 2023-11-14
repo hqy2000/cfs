@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package middleware;
+package proto.middleware;
 
 service Middleware {
   // Send a write request to dc_cap
@@ -8,8 +8,7 @@ service Middleware {
 }
 
 message PutMiddlewareRequest {
-  bytes data = 1;
-  bytes signature = 2;
+
 }
 
 message PutMiddlewareResponse {

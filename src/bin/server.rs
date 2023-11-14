@@ -4,8 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tonic::transport::Server;
-use crate::server::server::{DataCapsuleBlock, DataCapsuleServerData, MyDataCapsule};
-use crate::server::server::data_capsule_server::DataCapsuleServer;
+use crate::server::MyDataCapsule;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

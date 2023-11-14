@@ -1,12 +1,11 @@
 pub mod middleware {
-    tonic::include_proto!("middleware");
-    tonic::include_proto!("data_capusle");
     use std::sync::Arc;
-    use middleware_server::Middleware;
     use tonic::{Request, Response, Status};
     use ring::digest::{Context, SHA256};
     use data_encoding::{HEXLOWER};
     use tokio::sync::Mutex;
+    use crate::proto::middleware::{PutMiddlewareRequest, PutMiddlewareResponse};
+    use crate::proto::middleware::middleware_server::Middleware;
 
     #[derive(Debug, Default)]
     pub struct MyMiddleware {

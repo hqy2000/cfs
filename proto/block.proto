@@ -1,0 +1,40 @@
+syntax = "proto3";
+package proto.block;
+
+message DataCapsuleBlock {
+  string prevHash = 1;
+  oneof block {
+    DataBlock data = 100;
+    INodeBlock inode = 101;
+    ACLBlock acl = 102;
+  }
+  bytes signature = 1000;
+}
+
+message DataBlock {
+  bytes data = 1;
+}
+
+message INodeBlock {
+  bytes filename = 1;
+  uint64 size = 2;
+  Kind kind = 3;
+
+  repeated string hashes = 100;
+
+  enum Kind {
+    RegularFile = 0;
+    Directory = 1;
+  }
+}
+
+message ACLBlock {
+  repeated ID acl = 1;
+}
+
+message ID {
+  bytes clientPubKey = 1;
+  bytes uid = 2;
+}
+
+

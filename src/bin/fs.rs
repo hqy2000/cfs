@@ -1,8 +1,5 @@
-mod client;
-
 use clap::{Arg, ArgAction, Command};
 use fuser::MountOption;
-use crate::client::DCFS2;
 
 fn main() {
     let matches = Command::new("hello")

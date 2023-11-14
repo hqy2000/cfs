@@ -7,15 +7,19 @@ edition = "2021"
 
 [[bin]]
 name = "server"
-path = "src/server/main.rs"
+path = "src/bin/server.rs"
 
 [[bin]]
 name = "client"
-path = "src/client/main.rs"
+path = "src/bin/fs.rs"
 
 [[bin]]
 name = "middleware"
-path = "src/middleware/main.rs"
+path = "src/bin/middleware.rs"
+
+[lib]
+name = "lib"
+path = "src/lib/lib.rs"
 
 [dependencies]
 tonic = "0.10"
