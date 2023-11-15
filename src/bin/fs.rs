@@ -1,6 +1,8 @@
 use clap::{Arg, ArgAction, Command};
 use fuser::MountOption;
+use lib::client::{BlockClient, INodeClient};
 use lib::fs::DCFS2;
+use lib::proto::block::data_capsule_block::Block;
 
 fn main() {
     let matches = Command::new("hello")
@@ -33,5 +35,8 @@ fn main() {
     if matches.get_flag("allow-root") {
         options.push(MountOption::AllowRoot);
     }
-    fuser::mount2(DCFS2, mountpoint, &options).unwrap();
+    fuser::mount2(DCFS2{
+        block_client: BlockClient::connect("http://[::1]:50051"),
+        inode_client: INodeClient::connect("http://[::1]:50052")
+    }, mountpoint, &options).unwrap();
 }
