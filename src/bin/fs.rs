@@ -1,8 +1,8 @@
 use clap::{Arg, ArgAction, Command};
 use fuser::MountOption;
+use lib::cache::INodeCache;
 use lib::client::{BlockClient, INodeClient};
 use lib::fs::DCFS2;
-use lib::proto::block::data_capsule_block::Block;
 
 fn main() {
     let matches = Command::new("hello")
@@ -37,6 +37,6 @@ fn main() {
     }
     fuser::mount2(DCFS2{
         block_client: BlockClient::connect("http://[::1]:50051"),
-        inode_client: INodeClient::connect("http://[::1]:50052")
+        inode_cache: INodeCache::new(INodeClient::connect("http://[::1]:50052"), "root".into())
     }, mountpoint, &options).unwrap();
 }

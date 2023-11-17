@@ -62,6 +62,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 hashes: vec!["file_hash".into()],
                             })),
                             signature: vec![],
+                        }),
+                        ("folder1".into(), DataCapsuleBlock {
+                            prev_hash: "root".to_string(),
+                            block: Some(Block::Inode(INodeBlock {
+                                filename: Vec::from("folder1"),
+                                size: 0,
+                                kind: Kind::Directory.into(),
+                                hashes: vec![],
+                            })),
+                            signature: vec![],
                         })
                     ]
                 ),
