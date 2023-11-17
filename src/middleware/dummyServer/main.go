@@ -16,14 +16,14 @@ var (
 )
 
 type server struct {
-	pb.UnimplementedWriteServerServer
+	pb.UnimplementedMiddlewareServer
 }
 
-func (s *server) Write(ctx context.Context, in *pb.WriteRequestServer) (*pb.WriteReplyServer, error) {
+func (s *server) Put(ctx context.Context, in *pb.PutMiddlewareRequest) (*pb.PutMiddlewareResponse, error) {
 	log.Printf("Received: %v", string(in.GetData()))
 	log.Printf("Received: %v", string(in.GetSignature()))
-	replyHash := []byte("PathHash sent from server")
-	return &pb.WriteReplyServer{PathHash: replyHash}, nil
+	replyHash := "Hash response from dummy server"
+	return &pb.PutMiddlewareResponse{Hash: replyHash}, nil
 }
 
 func main() {
@@ -33,7 +33,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	pb.RegisterWriteServerServer(s, &server{})
+	pb.RegisterMiddlewareServer(s, &server{})
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
