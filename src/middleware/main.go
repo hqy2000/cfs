@@ -49,15 +49,15 @@ func main() {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
-	c := pb.NewWriteServerClient(conn)
+	c := pb.NewMiddlewareClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.Write(ctx, &pb.WriteRequestServer{Data: dummyData, Signature: dummySignature})
+	r, err := c.Put(ctx, &pb.PutMiddlewareRequest{Data: dummyData, Signature: dummySignature, Timestamp: time.Now().Unix()})
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)
 	}
-	pathHash := r.GetPathHash()
-	log.Printf("Receiving: %s", string(pathHash))
+	pathHash := r.GetHash()
+	log.Printf("Receiving: %s", pathHash)
 
 }

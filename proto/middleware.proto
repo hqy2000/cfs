@@ -2,13 +2,17 @@ syntax = "proto3";
 
 package proto.middleware;
 
+option go_package = "dcfs2/DCMiddleWare/proto";
+
 service Middleware {
   // Send a write request to dc_cap
   rpc Put (PutMiddlewareRequest) returns (PutMiddlewareResponse);
 }
 
 message PutMiddlewareRequest {
-
+  bytes data = 1;
+  bytes signature = 2;
+  int64 timestamp = 3;
 }
 
 message PutMiddlewareResponse {
