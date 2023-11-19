@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use duplicate::duplicate_item;
 
 use tokio::runtime::Runtime;
 use tonic::codegen::StdError;
@@ -22,54 +23,64 @@ impl Display for ClientError {
 
 impl Error for ClientError {}
 
-macro_rules! gen_client_methods {
-    ($client:ident) => {
-        pub fn connect<D>(addr: D) -> $client where
-            D: TryInto<tonic::transport::Endpoint>,
-            D::Error: Into<StdError>, {
-            let runtime = tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .unwrap();
+#[duplicate_item(
+    T C;
+    [BlockClient] [DataCapsuleClient];
+    [INodeClient] [DataCapsuleClient];
+    [FSMiddlewareClient] [MiddlewareClient];
+)]
+pub struct T {
+    client: C<tonic::transport::Channel>,
+    runtime: Runtime,
+}
 
-            let client = runtime.block_on(async {return  DataCapsuleClient::connect(addr).await.unwrap();});
+#[duplicate_item(
+    T C;
+    [BlockClient] [DataCapsuleClient];
+    [INodeClient] [DataCapsuleClient];
+    [FSMiddlewareClient] [MiddlewareClient];
+)]
+impl T {
+    pub fn connect<D>(addr: D) -> T where
+        D: TryInto<tonic::transport::Endpoint>,
+        D::Error: Into<StdError>, {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
 
-            return $client {
-                client,
-                runtime
-            };
-        }
+        let client = runtime.block_on(async { return C::connect(addr).await.unwrap(); });
 
-        pub fn get(&mut self, hash: &str) -> Result<DataCapsuleBlock, Box<dyn Error>> {
-            return self.runtime.block_on(async {
-                let request = tonic::Request::new(GetRequest {
-                    block_hash: hash.to_string()
-                });
-                let response = self.client.get(request).await?;
+        return T {
+            client,
+            runtime,
+        };
+    }
+}
 
-                Ok(response.get_ref().clone().block.unwrap())
+#[duplicate_item(T; [BlockClient]; [INodeClient])]
+impl T {
+    pub fn get(&mut self, hash: &str) -> Result<DataCapsuleBlock, Box<dyn Error>> {
+        return self.runtime.block_on(async {
+            let request = tonic::Request::new(GetRequest {
+                block_hash: hash.to_string()
             });
-        }
-    };
-}
+            let response = self.client.get(request).await?;
 
-pub struct BlockClient {
-    client: DataCapsuleClient<tonic::transport::Channel>,
-    runtime: Runtime,
-}
+            Ok(response.get_ref().clone().block.unwrap())
+        });
+    }
 
-pub struct INodeClient {
-    client: DataCapsuleClient<tonic::transport::Channel>,
-    runtime: Runtime,
-}
-
-pub struct FSMiddlewareClient {
-    client: MiddlewareClient<tonic::transport::Channel>,
-    runtime: Runtime,
+    pub fn get_leafs(&mut self) -> Result<Vec<String>, Box<dyn Error>> {
+        return self.runtime.block_on(async {
+            let request = tonic::Request::new(LeafsRequest {});
+            let response = self.client.leafs(request).await?;
+            Ok(response.get_ref().clone().leaf_ids)
+        });
+    }
 }
 
 impl BlockClient {
-    gen_client_methods!(BlockClient);
     pub fn get_block(&mut self, hash: &str) -> Result<Vec<u8>, Box<dyn Error>> {
         let response = self.get(hash);
         if let Block::Data(data) = response.unwrap().fs.unwrap().block.unwrap() {
@@ -80,34 +91,7 @@ impl BlockClient {
     }
 }
 
-impl INodeClient {
-    gen_client_methods!(INodeClient);
-    pub fn get_leafs(&mut self) -> Result<Vec<String>, Box<dyn Error>> {
-        return self.runtime.block_on(async {
-            let request = tonic::Request::new(LeafsRequest {});
-            let response = self.client.leafs(request).await?;
-            Ok(response.get_ref().clone().leaf_ids)
-        });
-    }
-}
-
 impl FSMiddlewareClient {
-    pub fn connect<D>(addr: D) -> FSMiddlewareClient where
-        D: TryInto<tonic::transport::Endpoint>,
-        D::Error: Into<StdError>, {
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-
-        let client = runtime.block_on(async { return MiddlewareClient::connect(addr).await.unwrap(); });
-
-        return FSMiddlewareClient {
-            client,
-            runtime,
-        };
-    }
-
     pub fn put_inode(&mut self, block: DataCapsuleFileSystemBlock) -> Result<String, Box<dyn Error>> {
         return self.runtime.block_on(async {
             if let Block::Inode(ref _data) = block.block.as_ref().unwrap() {

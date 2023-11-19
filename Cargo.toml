@@ -29,7 +29,7 @@ libc = "0.2"
 data-encoding = "2.4"
 futures = "0.3"
 rsa = { version = "0.9", features = ["pem", "sha2"] }
-#pkcs8 = { version = "0.10", features = ["pem"] }
+duplicate = "1.0"
 
 [build-dependencies]
 tonic-build = "0.10"
