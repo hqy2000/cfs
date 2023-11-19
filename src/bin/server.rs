@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         })
                     ]
                 ),
-                leafs: vec!["file".into()],
+                leafs: vec!["file".into(), "folder1".into()],
             }
         )),
     };

@@ -1,14 +1,22 @@
 syntax = "proto3";
 package proto.block;
+option go_package = "lib/go_proto";
 
 message DataCapsuleBlock {
   string prevHash = 1;
+  DataCapsuleFileSystemBlock fs = 2;
+  int64 timestamp = 500;
+  bytes signature = 1000;
+}
+
+message DataCapsuleFileSystemBlock {
+  string prevHash = 1; // duplicate of that in DataCapsuleBlock, must be the same
   oneof block {
     DataBlock data = 100;
     INodeBlock inode = 101;
-    ACLBlock acl = 102;
-  }
-  bytes signature = 1000;
+  };
+  ID updatedBy = 2001;
+  bytes signature = 2002;
 }
 
 message DataBlock {
@@ -20,21 +28,21 @@ message INodeBlock {
   uint64 size = 2;
   Kind kind = 3;
 
-  repeated string hashes = 100;
+  repeated string hashes = 1000;
+
+  repeated ID writeAllowList = 2000;
 
   enum Kind {
     RegularFile = 0;
     Directory = 1;
+
+    DeletedRegularFile = 2;
+    DeletedFolder = 3;
   }
 }
 
-message ACLBlock {
-  repeated ID acl = 1;
-}
-
 message ID {
-  bytes clientPubKey = 1;
+  bytes pubKey = 1;
   bytes uid = 2;
+  bytes signature = 3;
 }
-
-

@@ -1,20 +1,30 @@
 syntax = "proto3";
 
 package proto.middleware;
+option go_package = "lib/go_proto";
 
-option go_package = "dcfs2/DCMiddleWare/proto";
+import "block.proto";
 
 service Middleware {
-  // Send a write request to dc_cap
-  rpc Put (PutMiddlewareRequest) returns (PutMiddlewareResponse);
+  rpc PutINode (PutINodeRequest) returns (PutINodeResponse);
+  rpc PutData (PutDataRequest) returns (PutDataResponse);
 }
 
-message PutMiddlewareRequest {
-  bytes data = 1;
-  bytes signature = 2;
-  int64 timestamp = 3;
+message PutINodeRequest {
+    block.DataCapsuleFileSystemBlock block = 1;
 }
 
-message PutMiddlewareResponse {
-  string hash = 1;
+message PutDataRequest {
+  block.DataCapsuleFileSystemBlock block = 1;
+  string inodeHash = 2;
+}
+
+message PutINodeResponse {
+  bool success = 1;
+  optional string hash = 2;
+}
+
+message PutDataResponse {
+  bool success = 1;
+  optional string hash = 2;
 }

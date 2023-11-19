@@ -13,9 +13,6 @@ path = "src/bin/server.rs"
 name = "client"
 path = "src/bin/fs.rs"
 
-[[bin]]
-name = "middleware"
-path = "src/bin/middleware.rs"
 
 [lib]
 name = "lib"
