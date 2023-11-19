@@ -14,12 +14,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Install Dependencies
+        run: sudo apt-get install -y libssl-dev libfuse3-dev libprotobuf-dev protobuf-compiler
+
       - uses: actions/checkout@v3
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
+
+      - name: Protobuf
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+          protoc -I ../proto --go_out=. --go-grpc_out=. ../proto/*.proto --experimental_allow_proto3_optional
 
       - name: Build
         run: go build -v dcfs2/middleware/src/bin
