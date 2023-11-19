@@ -28,7 +28,8 @@ clap = "4.4"
 libc = "0.2"
 data-encoding = "2.4"
 futures = "0.3"
-rsa = "0.9"
+rsa = { version = "0.9", features = ["pem", "sha2"] }
+#pkcs8 = { version = "0.10", features = ["pem"] }
 
 [build-dependencies]
 tonic-build = "0.10"

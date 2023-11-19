@@ -1,17 +1,42 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use futures::future::join_all;
+use prost::Message;
+use ring::digest::{Context, SHA256};
 use tokio::sync::Mutex;
 use tonic::transport::Server;
 use lib::proto::block::data_capsule_file_system_block::Block;
-use lib::proto::block::{DataBlock, DataCapsuleBlock, DataCapsuleFileSystemBlock, INodeBlock};
+use lib::proto::block::{DataBlock, DataCapsuleBlock, DataCapsuleFileSystemBlock, Id, INodeBlock};
 use lib::proto::block::i_node_block::Kind;
 use lib::proto::data_capsule::data_capsule_server::DataCapsuleServer;
 use lib::proto::data_capsule::DataCapsuleServerData;
 use lib::server::MyDataCapsule;
+use rsa::{
+    pkcs1v15,
+    pkcs8::{DecodePrivateKey, DecodePublicKey},
+};
+use rsa::sha2::Sha256;
+use rsa::signature::{SignatureEncoding, Signer};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let server_key = Arc::new(Mutex::new(pkcs1v15::VerifyingKey::<Sha256>::from_public_key_pem(include_str!("../../key/server_public.pem")).unwrap())); // todo: thread safe?
+
+    let client1_public_pem = include_str!("../../key/client1_public.pem");
+    let client1_signing_key = pkcs1v15::SigningKey::<Sha256>::from_pkcs8_pem(include_str!("../../key/client1_private.pem")).unwrap();
+
+    let mut id = Id {
+        pub_key: Vec::from(client1_public_pem),
+        uid: 1001,
+        signature: vec![],
+    };
+
+    let mut context = Context::new(&SHA256);
+    let mut buf = vec![];
+    id.encode(&mut buf).unwrap();
+    context.update(&buf);
+    id.signature = client1_signing_key.sign(&buf).to_vec(); // sign
+
     let data_capsule_addr = "[::1]:50051".parse()?;
     let data_capsule = MyDataCapsule {
         data: Arc::new(Mutex::new(
@@ -34,12 +59,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                          })]
                 ),
                 leafs: Vec::new(),
-            }
+            },
         )),
+        verifying_key: server_key.clone()
     };
 
-    let inodeCapsuleAddr = "[::1]:50052".parse()?;
-    let inodeCapsule = MyDataCapsule {
+    let inode_capsule_addr = "[::1]:50052".parse()?;
+    let inode_capsule = MyDataCapsule {
         data: Arc::new(Mutex::new(
             DataCapsuleServerData {
                 content: HashMap::from(
@@ -55,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                      size: 0,
                                      kind: Kind::Directory.into(),
                                      hashes: vec![],
-                                     write_allow_list: vec![],
+                                     write_allow_list: vec![id.clone()],
                                  })),
                              }),
                             timestamp: 0,
@@ -72,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     size: 26,
                                     kind: Kind::RegularFile.into(),
                                     hashes: vec!["file_hash".into()],
-                                    write_allow_list: vec![],
+                                    write_allow_list: vec![id.clone()],
                                 })),
                             }),
                             timestamp: 0,
@@ -89,7 +115,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     size: 0,
                                     kind: Kind::Directory.into(),
                                     hashes: vec![],
-                                    write_allow_list: vec![],
+                                    write_allow_list: vec![id.clone()],
                                 })),
                             }),
                             signature: vec![],
@@ -100,6 +126,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 leafs: vec!["file".into(), "folder1".into()],
             }
         )),
+        verifying_key: server_key
     };
 
     let mut v = Vec::new();
@@ -109,8 +136,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .serve(data_capsule_addr));
 
     v.push(Server::builder()
-        .add_service(DataCapsuleServer::new(inodeCapsule))
-        .serve(inodeCapsuleAddr));
+        .add_service(DataCapsuleServer::new(inode_capsule))
+        .serve(inode_capsule_addr));
 
     join_all(v).await;
     Ok(())

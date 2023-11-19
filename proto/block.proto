@@ -43,6 +43,6 @@ message INodeBlock {
 
 message ID {
   bytes pubKey = 1;
-  bytes uid = 2;
+  uint64 uid = 2;
   bytes signature = 3;
 }
