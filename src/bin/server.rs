@@ -1,22 +1,24 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+
 use futures::future::join_all;
 use prost::Message;
-use ring::digest::{Context, SHA256};
-use tokio::sync::Mutex;
-use tonic::transport::Server;
-use lib::proto::block::data_capsule_file_system_block::Block;
-use lib::proto::block::{DataBlock, DataCapsuleBlock, DataCapsuleFileSystemBlock, Id, INodeBlock};
-use lib::proto::block::i_node_block::Kind;
-use lib::proto::data_capsule::data_capsule_server::DataCapsuleServer;
-use lib::proto::data_capsule::DataCapsuleServerData;
-use lib::server::MyDataCapsule;
 use rsa::{
     pkcs1v15,
     pkcs8::{DecodePrivateKey, DecodePublicKey},
 };
 use rsa::sha2::Sha256;
 use rsa::signature::{SignatureEncoding, Signer};
+use tokio::sync::Mutex;
+use tonic::transport::Server;
+
+use lib::crypto::SignableBlock;
+use lib::proto::block::{DataBlock, DataCapsuleBlock, DataCapsuleFileSystemBlock, Id, INodeBlock};
+use lib::proto::block::data_capsule_file_system_block::Block;
+use lib::proto::block::i_node_block::Kind;
+use lib::proto::data_capsule::data_capsule_server::DataCapsuleServer;
+use lib::proto::data_capsule::DataCapsuleServerData;
+use lib::server::MyDataCapsule;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,19 +27,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client1_public_pem = include_str!("../../key/client1_public.pem");
     let client1_signing_key = pkcs1v15::SigningKey::<Sha256>::from_pkcs8_pem(include_str!("../../key/client1_private.pem")).unwrap();
 
-    let mut id = Id {
+    let mut hqyId = Id {
         pub_key: Vec::from(client1_public_pem),
-        uid: 1001,
+        uid: 1000, // hqy2000: 1000; hyc: 1002; yms: 1003
         signature: vec![],
     };
+    hqyId.sign(&client1_signing_key);
 
-    let mut context = Context::new(&SHA256);
-    let mut buf = vec![];
-    id.encode(&mut buf).unwrap();
-    context.update(&buf);
-    id.signature = client1_signing_key.sign(&buf).to_vec(); // sign
-
-    let data_capsule_addr = "[::1]:50051".parse()?;
+    let data_capsule_addr = "127.0.0.1:50051".parse()?;
     let data_capsule = MyDataCapsule {
         data: Arc::new(Mutex::new(
             DataCapsuleServerData {
@@ -64,7 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         verifying_key: server_key.clone()
     };
 
-    let inode_capsule_addr = "[::1]:50052".parse()?;
+    let inode_capsule_addr = "127.0.0.1:50052".parse()?;
     let inode_capsule = MyDataCapsule {
         data: Arc::new(Mutex::new(
             DataCapsuleServerData {
@@ -81,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                      size: 0,
                                      kind: Kind::Directory.into(),
                                      hashes: vec![],
-                                     write_allow_list: vec![id.clone()],
+                                     write_allow_list: vec![hqyId.clone()],
                                  })),
                              }),
                             timestamp: 0,
@@ -98,7 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     size: 26,
                                     kind: Kind::RegularFile.into(),
                                     hashes: vec!["file_hash".into()],
-                                    write_allow_list: vec![id.clone()],
+                                    write_allow_list: vec![hqyId.clone()],
                                 })),
                             }),
                             timestamp: 0,
@@ -115,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     size: 0,
                                     kind: Kind::Directory.into(),
                                     hashes: vec![],
-                                    write_allow_list: vec![id.clone()],
+                                    write_allow_list: vec![hqyId.clone()],
                                 })),
                             }),
                             signature: vec![],

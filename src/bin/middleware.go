@@ -20,11 +20,12 @@ func main() {
 	}
 	s := grpc.NewServer()
 	go_proto.RegisterMiddlewareServer(s, &lib.MiddlewareServer{
-		InodeClient: connect(":50052"),
-		DataClient:  connect(":50051"),
+		InodeClient: connect("127.0.0.1:50052"),
+		DataClient:  connect("127.0.0.1:50051"),
 		PrivateKey:  loadPrivateKey("key/server_private.pem"),
 	})
-	log.Printf("server listening at %v", lis.Addr())
+	log.Println(s.GetServiceInfo())
+	s.GetServiceInfo()
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/rsa"
 	pb "dcfs2/middleware/src/lib/go_proto"
+	"fmt"
+	"github.com/golang/protobuf/proto"
 	"time"
 )
 
@@ -17,6 +19,8 @@ type MiddlewareServer struct {
 }
 
 func (s *MiddlewareServer) PutINode(ctx context.Context, in *pb.PutINodeRequest) (*pb.PutINodeResponse, error) {
+	fmt.Println("Received inode")
+	fmt.Println(proto.MarshalTextString(in.Block))
 	// 1. validate the client's signature first
 	if !ValidateDataCapsuleFileSystemBlock(in.Block) {
 		return &pb.PutINodeResponse{
@@ -24,15 +28,18 @@ func (s *MiddlewareServer) PutINode(ctx context.Context, in *pb.PutINodeRequest)
 			Hash:    nil,
 		}, nil
 	}
+	fmt.Println("Signature check passed")
 
 	// 2. ensure that the client is in ACL of the node attached to
 	// todo: edge case: previous node is marked as deleted
+	// todo: put a deleted = true node, need to verify leafs
 	if !s.validateFsBlock(in.Block, in.Block.PrevHash) {
 		return &pb.PutINodeResponse{
 			Success: false,
 			Hash:    nil,
 		}, nil
 	}
+	fmt.Println("ACL check passed")
 
 	// 3. ship the node to the server
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -42,10 +49,12 @@ func (s *MiddlewareServer) PutINode(ctx context.Context, in *pb.PutINodeRequest)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("Request sent")
+	fmt.Println(fmt.Println(proto.MarshalTextString(result)))
 
 	return &pb.PutINodeResponse{
 		Success: result.Success,
-		Hash:    nil,
+		Hash:    &result.Hash,
 	}, nil
 }
 
@@ -105,7 +114,7 @@ func (s *MiddlewareServer) validateFsBlock(fsBlock *pb.DataCapsuleFileSystemBloc
 
 	found := false
 	for _, prevId := range prevBlock.Block.Fs.GetInode().WriteAllowList {
-		if bytes.Equal(prevId.PubKey, fsBlock.UpdatedBy.PubKey) && bytes.Equal(prevId.Uid, fsBlock.UpdatedBy.PubKey) && ValidateID(prevId) {
+		if bytes.Equal(prevId.PubKey, fsBlock.UpdatedBy.PubKey) && prevId.Uid == fsBlock.UpdatedBy.Uid && ValidateID(prevId) {
 			found = true
 			break
 		}

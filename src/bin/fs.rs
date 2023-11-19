@@ -1,12 +1,16 @@
 use clap::{Arg, ArgAction, Command};
 use fuser::MountOption;
+use rsa::pkcs1v15;
+use rsa::pkcs8::DecodePrivateKey;
+use rsa::sha2::Sha256;
 use lib::cache::INodeCache;
-use lib::client::{BlockClient, INodeClient};
+use lib::client::{BlockClient, FSMiddlewareClient, INodeClient};
 use lib::fs::DCFS2;
 
 fn main() {
+    let client1_signing_key = pkcs1v15::SigningKey::<Sha256>::from_pkcs8_pem(include_str!("../../key/client1_private.pem")).unwrap();
+
     let matches = Command::new("hello")
-        .author("Christopher Berner")
         .arg(
             Arg::new("MOUNT_POINT")
                 .required(true)
@@ -28,7 +32,10 @@ fn main() {
         .get_matches();
     // env_logger::init();
     let mountpoint = matches.get_one::<String>("MOUNT_POINT").unwrap();
-    let mut options = vec![MountOption::RO, MountOption::FSName("hello".to_string())];
+    let mut options = vec![
+        MountOption::RW, // RO or RW
+        MountOption::FSName("hello".to_string()) // todo: what's this?
+    ];
     if matches.get_flag("auto_unmount") {
         options.push(MountOption::AutoUnmount);
     }
@@ -36,7 +43,9 @@ fn main() {
         options.push(MountOption::AllowRoot);
     }
     fuser::mount2(DCFS2{
-        block_client: BlockClient::connect("http://[::1]:50051"),
-        inode_cache: INodeCache::new(INodeClient::connect("http://[::1]:50052"), "root".into())
+        block_client: BlockClient::connect("http://127.0.0.1:50051"),
+        inode_cache: INodeCache::new(INodeClient::connect("http://127.0.0.1:50052"), "root".into()),
+        middleware_client: Some(FSMiddlewareClient::connect("http://127.0.0.1:50060")),
+        signing_key: Some(client1_signing_key)
     }, mountpoint, &options).unwrap();
 }

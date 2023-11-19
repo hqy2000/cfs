@@ -23,6 +23,7 @@ message PutRequest {
 
 message PutResponse {
   bool success = 1;
+  string hash = 2;
 }
 
 message LeafsRequest {

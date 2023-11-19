@@ -16,6 +16,7 @@ pub struct INodeCache {
 
 #[derive(Clone)]
 pub struct INode {
+    pub hash: String,
     pub ino: u64,
     pub parent_ino: u64,
     pub block: INodeBlock
@@ -34,8 +35,8 @@ impl INode {
             kind: self.get_file_type(),
             perm: 0o755,
             nlink: 2,
-            uid: 501,
-            gid: 20,
+            uid: 1000,
+            gid: 1000,
             rdev: 0,
             flags: 0,
             blksize: 512,
@@ -66,6 +67,7 @@ impl INodeCache {
         let block = self.client.get(&root).unwrap();
         if let Block::Inode(data) = block.fs.unwrap().block.unwrap() {
             let inode = INode{
+                hash: root.clone(),
                 ino: 1,
                 parent_ino: 1,
                 block: data,
@@ -93,12 +95,16 @@ impl INodeCache {
         return inode.unwrap().clone().0;
     }
 
+    pub fn get_ino(&self, hash: String) -> u64 {
+        return *self.hash_to_ino.get(&hash).unwrap();
+    }
+
     pub fn get_sub_inodes(&self, ino: u64) -> Vec<INode> {
         let inode = self.inodes.get(ino as usize);
         return inode.unwrap().clone().1;
     }
 
-    fn resolve(&mut self, hash: String)  {
+    pub fn resolve(&mut self, hash: String)  {
         if !self.hash_to_ino.contains_key(&hash) {
             let block = self.client.get(&hash).unwrap();
 
@@ -110,13 +116,15 @@ impl INodeCache {
                 let parent_ino = self.hash_to_ino.get(&block.prev_hash).unwrap();
 
                 let inode = INode{
+                    hash: hash.clone(),
                     ino: self.inodes.len() as u64,
                     parent_ino: *parent_ino,
                     block: data,
                 };
 
                 self.inodes.push((inode.clone(), Vec::new()));
-                self.inodes.get_mut(*parent_ino as usize).unwrap().1.push(inode);
+                self.inodes.get_mut(*parent_ino as usize).unwrap().1.push(inode.clone());
+                self.hash_to_ino.insert(hash, inode.ino);
             } else {
                 panic!();
             }

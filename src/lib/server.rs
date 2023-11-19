@@ -43,19 +43,22 @@ impl DataCapsule for MyDataCapsule {
 
         if mutex.content.contains_key(&hash) {
             Ok(Response::new(PutResponse {
-                success: false
+                success: false,
+                hash: "".into()
             }))
         } else {
+            let prev_hash = block.prev_hash.clone();
             mutex.content.insert(hash.clone(), block);
             mutex.leafs.push(hash.clone());
 
-            let index = mutex.leafs.iter().position(|x| *x == hash);
+            let index = mutex.leafs.iter().position(|x| *x == prev_hash);
             if index.is_some() {
                 mutex.leafs.remove(index.unwrap());
             }
 
             Ok(Response::new(PutResponse {
-                success: true
+                success: true,
+                hash: hash
             }))
         }
     }
