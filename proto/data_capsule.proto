@@ -1,12 +1,10 @@
 syntax = "proto3";
-package proto.data_capsule;
+package data_capsule;
 option go_package = "lib/go_proto";
 
 import "block.proto";
 
 message DataCapsuleServerData {
-  bytes id = 1;
-  bytes writePubKey = 1000;
   map<string, block.DataCapsuleBlock> content = 2000;
   repeated string leafs = 3000;
 }

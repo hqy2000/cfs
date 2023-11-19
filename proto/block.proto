@@ -1,5 +1,5 @@
 syntax = "proto3";
-package proto.block;
+package block;
 option go_package = "lib/go_proto";
 
 message DataCapsuleBlock {

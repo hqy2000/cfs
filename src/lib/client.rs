@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 use tokio::runtime::Runtime;
 use tonic::codegen::StdError;
 
-use crate::proto::block::data_capsule_block::Block;
+use crate::proto::block::data_capsule_file_system_block::Block;
 use crate::proto::block::DataCapsuleBlock;
 use crate::proto::data_capsule::{GetRequest, LeafsRequest};
 use crate::proto::data_capsule::data_capsule_client::DataCapsuleClient;
@@ -65,7 +65,7 @@ impl BlockClient {
     gen_client_methods!(BlockClient);
     pub fn get_block(&mut self, hash: &str) -> Result<Vec<u8>, Box<dyn Error>> {
         let response = self.get(hash);
-        if let Block::Data(data) = response.unwrap().block.unwrap() {
+        if let Block::Data(data) = response.unwrap().fs.unwrap().block.unwrap() {
             Ok(data.data)
         } else {
             Err(Box::new(ClientError {}))

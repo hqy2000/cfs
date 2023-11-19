@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package proto.middleware;
+package middleware;
 option go_package = "lib/go_proto";
 
 import "block.proto";

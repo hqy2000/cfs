@@ -1,5 +1,5 @@
 [package]
-name = "dc-router"
+name = "dcfs2"
 version = "0.1.0"
 edition = "2021"
 
@@ -28,6 +28,7 @@ clap = "4.4"
 libc = "0.2"
 data-encoding = "2.4"
 futures = "0.3"
+rsa = "0.9"
 
 [build-dependencies]
 tonic-build = "0.10"

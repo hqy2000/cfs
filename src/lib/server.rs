@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 use ring::digest::{Context, SHA256};
 use data_encoding::{HEXLOWER};
+use prost::Message;
 use tokio::sync::Mutex;
 use crate::proto::data_capsule::data_capsule_server::DataCapsule;
 use crate::proto::data_capsule::{DataCapsuleServerData, GetRequest, GetResponse, LeafsRequest, LeafsResponse, PutRequest, PutResponse};
@@ -26,16 +27,16 @@ impl DataCapsule for MyDataCapsule {
 
         let request = request.into_inner();
         let block = request.block.unwrap();
-        let ref_hash = request.hash;
 
         let mut context = Context::new(&SHA256);
-        context.update(&block.prev_hash.as_bytes());
-        // context.update(&block.block.into().); // TODO
+        let mut buf = vec![];
+        block.encode(&mut buf).unwrap();
+        context.update(&buf);
         let hash = HEXLOWER.encode(context.finish().as_ref());
 
         let mut mutex = self.data.lock().await;
 
-        if hash != ref_hash || mutex.content.contains_key(&hash) {
+        if mutex.content.contains_key(&hash) {
             Ok(Response::new(PutResponse {
                 success: false
             }))

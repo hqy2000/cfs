@@ -5,7 +5,7 @@ use fuser::{FileAttr, FileType};
 
 use crate::client::INodeClient;
 use crate::proto::block::INodeBlock;
-use crate::proto::block::data_capsule_block::Block;
+use crate::proto::block::data_capsule_file_system_block::Block;
 use crate::proto::block::i_node_block::Kind;
 
 pub struct INodeCache {
@@ -64,7 +64,7 @@ impl INodeCache {
 
     fn build(&mut self, root: String) {
         let block = self.client.get(&root).unwrap();
-        if let Block::Inode(data) = block.block.unwrap() {
+        if let Block::Inode(data) = block.fs.unwrap().block.unwrap() {
             let inode = INode{
                 ino: 1,
                 parent_ino: 1,
@@ -106,7 +106,7 @@ impl INodeCache {
                 self.resolve(block.prev_hash.clone());
             }
 
-            if let Block::Inode(data) = block.block.unwrap() {
+            if let Block::Inode(data) = block.fs.unwrap().block.unwrap() {
                 let parent_ino = self.hash_to_ino.get(&block.prev_hash).unwrap();
 
                 let inode = INode{

@@ -96,6 +96,7 @@ impl Filesystem for DCFS2 {
                 size: 0,
                 kind: parent_inode.block.kind,
                 hashes: parent_inode.block.hashes,
+                write_allow_list: vec![]
             }
         });
 
@@ -107,6 +108,7 @@ impl Filesystem for DCFS2 {
                 size: 0,
                 kind: inode.block.kind,
                 hashes: inode.block.hashes,
+                write_allow_list: vec![]
             }
         });
 
