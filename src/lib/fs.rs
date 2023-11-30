@@ -3,10 +3,11 @@ use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::time::Duration;
 
-use fuser::{Filesystem, ReplyAttr, ReplyCreate, ReplyData, ReplyDirectory, ReplyEntry, Request};
-use libc::ENOENT;
+use fuser::{Filesystem, ReplyAttr, ReplyCreate, ReplyData, ReplyDirectory, ReplyEntry, ReplyWrite, Request};
+use libc::{ENOENT, ENOSYS};
 use rsa::pkcs1v15::SigningKey;
 use rsa::sha2::Sha256;
+use log::debug;
 
 use crate::cache::{INode, INodeCache};
 use crate::client::{BlockClient, FSMiddlewareClient};
@@ -16,6 +17,7 @@ use crate::proto::block::data_capsule_file_system_block::Block;
 use crate::proto::block::i_node_block::Kind;
 
 const TTL: Duration = Duration::from_secs(1); // 1 second
+const BLOCK_SIZE: i64 = 512;
 
 pub struct DCFS2 {
     pub block_client: BlockClient,
@@ -53,7 +55,7 @@ impl Filesystem for DCFS2 {
         ino: u64,
         _fh: u64,
         offset: i64,
-        _size: u32,
+        size: u32,
         _flags: i32,
         _lock: Option<u64>,
         reply: ReplyData,
@@ -61,9 +63,20 @@ impl Filesystem for DCFS2 {
         if ino < self.inode_cache.num_inodes() {
             let inode = self.inode_cache.get_inode(ino);
 
-            // todo: multiple blocks
-            let response: Result<Vec<u8>, Box<dyn Error>> = self.block_client.get_block(inode.block.hashes.get(0).unwrap());
-            reply.data(&response.unwrap()[offset as usize..]);
+            let mut current = offset;
+            let mut data = vec![];
+
+            while current < offset + i64::from(size) {
+                if let Some(hash) = inode.block.hashes.get((current / BLOCK_SIZE) as usize) {
+                    print!("Getting {} block ({}) for offset {} size {}\n", current / BLOCK_SIZE, hash, offset, size);
+                    let response = self.block_client.get_block(hash).unwrap();
+                    data.extend_from_slice(&response[(current % BLOCK_SIZE) as usize..]);
+                    current = (current + BLOCK_SIZE) / BLOCK_SIZE * BLOCK_SIZE;
+                } else {
+                    break;
+                }
+            }
+            reply.data(&data);
         } else {
             reply.error(ENOENT);
         }
@@ -165,8 +178,24 @@ impl Filesystem for DCFS2 {
         let response = self.middleware_client.as_mut().unwrap().put_inode(block).unwrap();
         self.inode_cache.resolve(response.clone());
 
-        reply.created(&TTL, &self.inode_cache.get_inode(self.inode_cache.get_ino(response.clone())).to_file_attr(), 0, 1, 0); // todo: file handle?
+        reply.created(&TTL, &self.inode_cache.get_inode(self.inode_cache.get_ino(response.clone())).to_file_attr(), 0, 100, 0); // todo: file handle?
     }
+
+    fn write(
+        &mut self,
+        _req: &Request<'_>,
+        ino: u64,
+        _fh: u64,
+        offset: i64,
+        data: &[u8],
+        _write_flags: u32,
+        _flags: i32,
+        _lock_owner: Option<u64>,
+        reply: ReplyWrite,
+    ) {
+        reply.error(ENOSYS)
+    }
+
 
 }
 

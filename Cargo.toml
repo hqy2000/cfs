@@ -30,6 +30,7 @@ data-encoding = "2.4"
 futures = "0.3"
 rsa = { version = "0.9", features = ["pem", "sha2"] }
 duplicate = "1.0"
+log = "0.4.20"
 
 [build-dependencies]
 tonic-build = "0.10"

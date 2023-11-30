@@ -40,20 +40,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             DataCapsuleServerData {
                 content: HashMap::from(
                     [
-                        ("file_hash".to_string(),
+                        ("file_hash1".to_string(),
                          DataCapsuleBlock {
                              prev_hash: "".to_string(),
                              fs: Some(DataCapsuleFileSystemBlock{
                                  prev_hash: "".to_string(),
                                  block: Some(Block::Data(DataBlock {
-                                     data: Vec::from("dc server resp lololololol")
+                                     data: vec![u8::try_from('a').unwrap(); 512]
                                  })),
                                  updated_by: None,
                                  signature: vec![],
                              }),
                              timestamp: 0,
                              signature: vec![],
-                         })]
+                         }),  ("file_hash2".to_string(),
+                               DataCapsuleBlock {
+                                   prev_hash: "".to_string(),
+                                   fs: Some(DataCapsuleFileSystemBlock{
+                                       prev_hash: "".to_string(),
+                                       block: Some(Block::Data(DataBlock {
+                                           data: vec![u8::try_from('b').unwrap(); 720 - 512]
+                                       })),
+                                       updated_by: None,
+                                       signature: vec![],
+                                   }),
+                                   timestamp: 0,
+                                   signature: vec![],
+                               })]
                 ),
                 leafs: Vec::new(),
             },
@@ -92,9 +105,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 signature: vec![],
                                 block: Some(Block::Inode(INodeBlock {
                                     filename: Vec::from("dc_file.txt"),
-                                    size: 26,
+                                    size: 720,
                                     kind: Kind::RegularFile.into(),
-                                    hashes: vec!["file_hash".into()],
+                                    hashes: vec!["file_hash1".into(), "file_hash2".into()],
                                     write_allow_list: vec![hqyId.clone()],
                                 })),
                             }),
