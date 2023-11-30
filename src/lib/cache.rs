@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::time::UNIX_EPOCH;
 
 use fuser::{FileAttr, FileType};
+use fuser::FileType::Directory;
 
 use crate::client::INodeClient;
 use crate::proto::block::INodeBlock;
@@ -19,7 +20,8 @@ pub struct INode {
     pub hash: String,
     pub ino: u64,
     pub parent_ino: u64,
-    pub block: INodeBlock
+    pub block: INodeBlock,
+    pub timestamp: i64,
 }
 
 impl INode {
@@ -33,7 +35,7 @@ impl INode {
             ctime: UNIX_EPOCH,
             crtime: UNIX_EPOCH,
             kind: self.get_file_type(),
-            perm: 0o755,
+            perm: self.get_perm(),
             nlink: 2,
             uid: 1000,
             gid: 1000,
@@ -48,6 +50,14 @@ impl INode {
             FileType::Directory
         } else {
             FileType::RegularFile
+        }
+    }
+
+    pub fn get_perm(&self) -> u16 {
+        if self.get_file_type() == Directory {
+            return 0o755;
+        } else {
+            return 0o644;
         }
     }
 }
@@ -71,6 +81,7 @@ impl INodeCache {
                 ino: 1,
                 parent_ino: 1,
                 block: data,
+                timestamp: block.timestamp
             };
 
             self.inodes.push((inode.clone(), Vec::new()));
@@ -120,9 +131,14 @@ impl INodeCache {
                     ino: self.inodes.len() as u64,
                     parent_ino: *parent_ino,
                     block: data,
+                    timestamp: block.timestamp
                 };
 
                 self.inodes.push((inode.clone(), Vec::new()));
+                let index = self.inodes.get(*parent_ino as usize).unwrap().1.iter().position(|x| x.block.filename == inode.block.filename && x.timestamp < inode.timestamp);
+                if let Some(idx) = index {
+                    self.inodes.get_mut(*parent_ino as usize).unwrap().1.remove(idx);
+                }
                 self.inodes.get_mut(*parent_ino as usize).unwrap().1.push(inode.clone());
                 self.hash_to_ino.insert(hash, inode.ino);
             } else {

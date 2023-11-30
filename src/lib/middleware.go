@@ -87,7 +87,7 @@ func (s *MiddlewareServer) PutData(ctx context.Context, in *pb.PutDataRequest) (
 
 	return &pb.PutDataResponse{
 		Success: result.Success,
-		Hash:    nil,
+		Hash:    &result.Hash,
 	}, nil
 }
 

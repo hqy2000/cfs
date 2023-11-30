@@ -1,18 +1,17 @@
-use std::error::Error;
+use std::cmp::min;
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::time::Duration;
 
 use fuser::{Filesystem, ReplyAttr, ReplyCreate, ReplyData, ReplyDirectory, ReplyEntry, ReplyWrite, Request};
-use libc::{ENOENT, ENOSYS};
+use libc::ENOENT;
 use rsa::pkcs1v15::SigningKey;
 use rsa::sha2::Sha256;
-use log::debug;
 
 use crate::cache::{INode, INodeCache};
 use crate::client::{BlockClient, FSMiddlewareClient};
 use crate::crypto::SignableBlock;
-use crate::proto::block::{DataCapsuleFileSystemBlock, Id, INodeBlock};
+use crate::proto::block::{DataBlock, DataCapsuleFileSystemBlock, Id, INodeBlock};
 use crate::proto::block::data_capsule_file_system_block::Block;
 use crate::proto::block::i_node_block::Kind;
 
@@ -114,7 +113,8 @@ impl Filesystem for DCFS2 {
                 kind: parent_inode.block.kind,
                 hashes: parent_inode.block.hashes,
                 write_allow_list: vec![]
-            }
+            },
+            timestamp: 0
         });
 
         children.insert(0, INode{
@@ -127,7 +127,8 @@ impl Filesystem for DCFS2 {
                 kind: inode.block.kind,
                 hashes: inode.block.hashes,
                 write_allow_list: vec![]
-            }
+            },
+            timestamp: 0
         });
 
         for (i, entry) in children.into_iter().enumerate().skip(offset as usize) {
@@ -183,7 +184,7 @@ impl Filesystem for DCFS2 {
 
     fn write(
         &mut self,
-        _req: &Request<'_>,
+        req: &Request<'_>,
         ino: u64,
         _fh: u64,
         offset: i64,
@@ -193,7 +194,83 @@ impl Filesystem for DCFS2 {
         _lock_owner: Option<u64>,
         reply: ReplyWrite,
     ) {
-        reply.error(ENOSYS)
+        if ino >= self.inode_cache.num_inodes() {
+            reply.error(ENOENT);
+            return;
+        }
+
+        let inode = self.inode_cache.get_inode(ino);
+        if inode.block.kind != Kind::RegularFile.into() {
+            reply.error(ENOENT);
+            return;
+        }
+
+        let mut updatedBy = Id {
+            pub_key: Vec::from(include_str!("../../key/client1_public.pem")), // todo: store this along key.
+            uid: req.uid() as u64,
+            signature: vec![],
+        };
+        updatedBy.sign(self.signing_key.as_ref().unwrap());
+
+        let mut hashes: Vec<String> = vec![];
+
+        let mut id = 0;
+
+
+        while id * BLOCK_SIZE < offset + data.len() as i64 {
+            let lower = id * BLOCK_SIZE;
+            let upper = (id + 1) * BLOCK_SIZE;
+
+            if upper < offset {
+                hashes.push(inode.block.hashes[id as usize].clone())
+            } else {
+                let mut block_data = vec![];
+
+                if lower < offset {
+                    if let Some(hash) = inode.block.hashes.get(id as usize) {
+                        let response = self.block_client.get_block(hash).unwrap();
+                        block_data = response;
+                    }
+                    block_data.truncate((offset % BLOCK_SIZE) as usize);
+                    block_data.extend_from_slice(&data[..(BLOCK_SIZE - (offset % BLOCK_SIZE)) as usize])
+                } else {
+                    block_data = data[(lower - offset) as usize..min((upper - offset) as usize, data.len())].to_owned();
+                }
+
+                let data = DataBlock {
+                    data: block_data
+                };
+
+                let mut block = DataCapsuleFileSystemBlock {
+                    prev_hash: "file_hash1".into(),  // always file_hash1 because we don't care about the structure
+                    block: Some(Block::Data(data)),
+                    updated_by: Some(updatedBy.clone()),
+                    signature: vec![],
+                };
+                block.sign(self.signing_key.as_ref().unwrap());
+
+                let response = self.middleware_client.as_mut().unwrap().put_data(block, inode.hash.clone()).unwrap();
+                hashes.push(response);
+            }
+
+            id += 1
+        }
+
+        let mut block = inode.block.clone();
+        block.hashes = hashes;
+        block.size = (offset + data.len() as i64) as u64;
+        let mut block = DataCapsuleFileSystemBlock {
+            prev_hash: self.inode_cache.get_inode(inode.parent_ino).hash,
+            block: Some(Block::Inode(block)),
+            updated_by: Some(updatedBy),
+            signature: vec![],
+        };
+        block.sign(self.signing_key.as_ref().unwrap());
+
+        let response = self.middleware_client.as_mut().unwrap().put_inode(block).unwrap();
+        self.inode_cache.resolve(response.clone());
+
+        reply.written(data.len() as u32);
     }
 
 
