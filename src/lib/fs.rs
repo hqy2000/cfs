@@ -189,6 +189,31 @@ impl Filesystem for DCFS2 {
         reply.created(&TTL, &self.inode_cache.get_inode(self.inode_cache.get_ino(response.clone())).to_file_attr(), 0, 100, 0); // todo: file handle?
     }
 
+    fn mkdir(&mut self, req: &Request<'_>, parent: u64, name: &OsStr, mode: u32, umask: u32, reply: ReplyEntry) {
+        let parent_block = self.inode_cache.get_inode(parent);
+
+        let inode_block = INodeBlock {
+            filename: Vec::from(name.to_str().unwrap()),
+            size: 0,
+            kind: Kind::Directory.into(),
+            hashes: vec![],
+            write_allow_list: parent_block.block.write_allow_list.clone(),
+        };
+
+        let mut block = DataCapsuleFileSystemBlock {
+            prev_hash: parent_block.hash.clone(),
+            block: Some(Block::Inode(inode_block)),
+            updated_by: Some(self.get_id(req.uid() as u64)),
+            signature: vec![],
+        };
+        block.sign(self.signing_key.as_ref().unwrap());
+
+        let response = self.middleware_client.as_mut().unwrap().put_inode(block).unwrap();
+        self.inode_cache.resolve(response.clone());
+
+        reply.entry(&TTL, &self.inode_cache.get_inode(self.inode_cache.get_ino(response.clone())).to_file_attr(), 0        ); // todo: file handle?
+    }
+
     fn write(
         &mut self,
         req: &Request<'_>,
@@ -293,6 +318,39 @@ impl Filesystem for DCFS2 {
         }
         reply.attr(&TTL, &self.inode_cache.get_inode(ino).to_file_attr())
     }
+
+    fn rmdir(&mut self, req: &Request<'_>, parent: u64, name: &OsStr, reply: ReplyEmpty) {
+        let nodes = self.inode_cache.get_sub_inodes(parent);
+        let index = nodes.iter().position(|x| OsStr::from_bytes(&x.block.filename) == name);
+        if let Some(index) = index {
+            let mut inode_block: INode = nodes.get(index).unwrap().clone();
+            if inode_block.block.kind != Kind::Directory.into() {
+                debug!("unlink: thing to remove is not a regular folder {}", inode_block.block.kind);
+                reply.error(ENOENT);
+            } else {
+                inode_block.block.kind = Kind::DeletedFolder.into();
+                inode_block.block.hashes = vec![];
+                inode_block.block.size = 0;
+
+                let mut block = DataCapsuleFileSystemBlock {
+                    prev_hash: self.inode_cache.get_inode(inode_block.parent_ino).hash,
+                    block: Some(Block::Inode(inode_block.block)),
+                    updated_by: Some(self.get_id(req.uid() as u64)),
+                    signature: vec![],
+                };
+                block.sign(self.signing_key.as_ref().unwrap());
+
+                let response = self.middleware_client.as_mut().unwrap().put_inode(block).unwrap();
+                self.inode_cache.resolve(response.clone());
+
+                reply.ok();
+            }
+        } else {
+            debug!("unlink: unable to find the folder");
+            reply.error(ENOENT);
+        }
+    }
+
 
     fn unlink(&mut self, req: &Request<'_>, parent: u64, name: &OsStr, reply: ReplyEmpty) {
         let nodes = self.inode_cache.get_sub_inodes(parent);
