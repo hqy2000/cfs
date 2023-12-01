@@ -9,9 +9,9 @@ use log::debug;
 use rsa::pkcs1v15::SigningKey;
 use rsa::sha2::Sha256;
 
-use crate::inode_cache::{INode, INodeCache};
 use crate::client::{BlockClient, FSMiddlewareClient};
 use crate::crypto::SignableBlock;
+use crate::inode_cache::{INode, INodeCache};
 use crate::proto::block::{DataBlock, DataCapsuleFileSystemBlock, Id, INodeBlock};
 use crate::proto::block::data_capsule_file_system_block::Block;
 use crate::proto::block::i_node_block::Kind;
@@ -26,12 +26,24 @@ pub struct DCFS2 {
     pub signing_key: Option<SigningKey<Sha256>>,
 }
 
+impl DCFS2 {
+    fn get_id(&mut self, uid: u64) -> Id {
+        let mut id = Id {
+            pub_key: Vec::from(include_str!("../../key/client1_public.pem")), // todo: store this along key.
+            uid: uid,
+            signature: vec![],
+        };
+        id.sign(self.signing_key.as_ref().unwrap());
+        return id;
+    }
+}
+
 
 impl Filesystem for DCFS2 {
     fn lookup(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
         if parent < self.inode_cache.num_inodes() {
             let sub_inodes = self.inode_cache.get_sub_inodes(parent);
-            if let Some(inode) = sub_inodes.iter().find(|x| x.block.filename == name.to_str().unwrap().as_bytes()) {
+            if let Some(inode) = sub_inodes.iter().find(|x| x.block.filename == name.to_str().unwrap().as_bytes() && !x.is_deleted()) {
                 reply.entry(&TTL, &inode.to_file_attr(), 0);
             } else {
                 reply.error(ENOENT);
@@ -155,13 +167,6 @@ impl Filesystem for DCFS2 {
     ) {
         let parent_block = self.inode_cache.get_inode(parent);
 
-        let mut id = Id {
-            pub_key: Vec::from(include_str!("../../key/client1_public.pem")), // todo: store this along key.
-            uid: req.uid() as u64,
-            signature: vec![],
-        };
-        id.sign(self.signing_key.as_ref().unwrap());
-
         let inode_block = INodeBlock {
             filename: Vec::from(name.to_str().unwrap()),
             size: 0,
@@ -173,7 +178,7 @@ impl Filesystem for DCFS2 {
         let mut block = DataCapsuleFileSystemBlock {
             prev_hash: parent_block.hash.clone(),
             block: Some(Block::Inode(inode_block)),
-            updated_by: Some(id),
+            updated_by: Some(self.get_id(req.uid() as u64)),
             signature: vec![],
         };
         block.sign(self.signing_key.as_ref().unwrap());
@@ -207,13 +212,6 @@ impl Filesystem for DCFS2 {
             return;
         }
 
-        let mut updatedBy = Id {
-            pub_key: Vec::from(include_str!("../../key/client1_public.pem")), // todo: store this along key.
-            uid: req.uid() as u64,
-            signature: vec![],
-        };
-        updatedBy.sign(self.signing_key.as_ref().unwrap());
-
         let mut hashes: Vec<String> = vec![];
 
         let mut id = 0;
@@ -246,7 +244,7 @@ impl Filesystem for DCFS2 {
                 let mut block = DataCapsuleFileSystemBlock {
                     prev_hash: "file_hash1".into(),  // always file_hash1 because we don't care about the structure
                     block: Some(Block::Data(data)),
-                    updated_by: Some(updatedBy.clone()),
+                    updated_by: Some(self.get_id(req.uid() as u64)),
                     signature: vec![],
                 };
                 block.sign(self.signing_key.as_ref().unwrap());
@@ -264,7 +262,7 @@ impl Filesystem for DCFS2 {
         let mut block = DataCapsuleFileSystemBlock {
             prev_hash: self.inode_cache.get_inode(inode.parent_ino).hash,
             block: Some(Block::Inode(block)),
-            updated_by: Some(updatedBy),
+            updated_by: Some(self.get_id(req.uid() as u64)),
             signature: vec![],
         };
         block.sign(self.signing_key.as_ref().unwrap());
@@ -275,14 +273,8 @@ impl Filesystem for DCFS2 {
         reply.written(data.len() as u32);
     }
 
-    fn setattr(&mut self, req: &Request<'_>, ino: u64, mode: Option<u32>, uid: Option<u32>, gid: Option<u32>, size: Option<u64>, _atime: Option<TimeOrNow>, _mtime: Option<TimeOrNow>, _ctime: Option<SystemTime>, fh: Option<u64>, _crtime: Option<SystemTime>, _chgtime: Option<SystemTime>, _bkuptime: Option<SystemTime>, flags: Option<u32>, reply: ReplyAttr) {
+    fn setattr(&mut self, req: &Request<'_>, ino: u64, _mode: Option<u32>, _uid: Option<u32>, _gid: Option<u32>, size: Option<u64>, _atime: Option<TimeOrNow>, _mtime: Option<TimeOrNow>, _ctime: Option<SystemTime>, _fh: Option<u64>, _crtime: Option<SystemTime>, _chgtime: Option<SystemTime>, _bkuptime: Option<SystemTime>, flags: Option<u32>, reply: ReplyAttr) {
         if let Some(size) = size {
-            let mut id = Id {
-                pub_key: Vec::from(include_str!("../../key/client1_public.pem")), // todo: store this along key.
-                uid: req.uid() as u64,
-                signature: vec![],
-            };
-            id.sign(self.signing_key.as_ref().unwrap());
 
             let mut inode_block = self.inode_cache.get_inode(ino);
             inode_block.block.size = size;
@@ -290,7 +282,7 @@ impl Filesystem for DCFS2 {
             let mut block = DataCapsuleFileSystemBlock {
                 prev_hash: self.inode_cache.get_inode(inode_block.parent_ino).hash,
                 block: Some(Block::Inode(inode_block.block)),
-                updated_by: Some(id),
+                updated_by: Some(self.get_id(req.uid() as u64)),
                 signature: vec![],
             };
             block.sign(self.signing_key.as_ref().unwrap());
@@ -300,6 +292,38 @@ impl Filesystem for DCFS2 {
 
         }
         reply.attr(&TTL, &self.inode_cache.get_inode(ino).to_file_attr())
+    }
+
+    fn unlink(&mut self, req: &Request<'_>, parent: u64, name: &OsStr, reply: ReplyEmpty) {
+        let nodes = self.inode_cache.get_sub_inodes(parent);
+        let index = nodes.iter().position(|x| OsStr::from_bytes(&x.block.filename) == name);
+        if let Some(index) = index {
+            let mut inode_block: INode = nodes.get(index).unwrap().clone();
+            if inode_block.block.kind != Kind::RegularFile.into() {
+                debug!("unlink: thing to remove is not a regular file {}", inode_block.block.kind);
+                reply.error(ENOENT);
+            } else {
+                inode_block.block.kind = Kind::DeletedRegularFile.into();
+                inode_block.block.hashes = vec![];
+                inode_block.block.size = 0;
+
+                let mut block = DataCapsuleFileSystemBlock {
+                    prev_hash: self.inode_cache.get_inode(inode_block.parent_ino).hash,
+                    block: Some(Block::Inode(inode_block.block)),
+                    updated_by: Some(self.get_id(req.uid() as u64)),
+                    signature: vec![],
+                };
+                block.sign(self.signing_key.as_ref().unwrap());
+
+                let response = self.middleware_client.as_mut().unwrap().put_inode(block).unwrap();
+                self.inode_cache.resolve(response.clone());
+
+                reply.ok();
+            }
+        } else {
+            debug!("unlink: unable to find the file");
+            reply.error(ENOENT);
+        }
     }
 }
 
