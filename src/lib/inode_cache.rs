@@ -126,7 +126,8 @@ impl INodeCache {
             if let Block::Inode(data) = block.fs.unwrap().block.unwrap() {
                 let parent_ino = self.hash_to_ino.get(&block.prev_hash).unwrap();
 
-                let inode = INode{
+
+                let mut inode = INode{
                     hash: hash.clone(),
                     ino: self.inodes.len() as u64,
                     parent_ino: *parent_ino,
@@ -134,10 +135,21 @@ impl INodeCache {
                     timestamp: block.timestamp
                 };
 
-                self.inodes.push((inode.clone(), Vec::new()));
-                let index = self.inodes.get(*parent_ino as usize).unwrap().1.iter().position(|x| x.block.filename == inode.block.filename && x.timestamp < inode.timestamp);
+
+                let index = self.inodes.get(*parent_ino as usize).unwrap().1.iter().position(|x| x.block.filename == inode.block.filename);
                 if let Some(idx) = index {
-                    self.inodes.get_mut(*parent_ino as usize).unwrap().1.remove(idx);
+                    {
+                        let prev_node = self.inodes.get(*parent_ino as usize).unwrap().1.get(idx).unwrap();
+                        if prev_node.timestamp > inode.timestamp {
+                            return; // we're having an older node, discard
+                        }
+                        inode.ino = prev_node.ino;
+                    }
+
+                    self.inodes[inode.ino as usize] = (inode.clone(), Vec::new()); // update local inode to the latest version
+                    self.inodes.get_mut(*parent_ino as usize).unwrap().1.remove(idx);  // delete outdated inode from parent
+                } else {
+                    self.inodes.push((inode.clone(), Vec::new()));
                 }
                 self.inodes.get_mut(*parent_ino as usize).unwrap().1.push(inode.clone());
                 self.hash_to_ino.insert(hash, inode.ino);

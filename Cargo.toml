@@ -21,7 +21,7 @@ path = "src/lib/lib.rs"
 [dependencies]
 tonic = "0.10"
 prost = "0.12"
-tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.0", features = ["full"] }
 ring = "0.17"
 fuser = "0.14"
 clap = "4.4"

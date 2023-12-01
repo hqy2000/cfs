@@ -8,7 +8,7 @@ use libc::ENOENT;
 use rsa::pkcs1v15::SigningKey;
 use rsa::sha2::Sha256;
 
-use crate::cache::{INode, INodeCache};
+use crate::inode_cache::{INode, INodeCache};
 use crate::client::{BlockClient, FSMiddlewareClient};
 use crate::crypto::SignableBlock;
 use crate::proto::block::{DataBlock, DataCapsuleFileSystemBlock, Id, INodeBlock};
@@ -232,7 +232,7 @@ impl Filesystem for DCFS2 {
                         block_data = response;
                     }
                     block_data.truncate((offset % BLOCK_SIZE) as usize);
-                    block_data.extend_from_slice(&data[..(BLOCK_SIZE - (offset % BLOCK_SIZE)) as usize])
+                    block_data.extend_from_slice(&data[..min((BLOCK_SIZE - (offset % BLOCK_SIZE)) as usize, data.len())])
                 } else {
                     block_data = data[(lower - offset) as usize..min((upper - offset) as usize, data.len())].to_owned();
                 }

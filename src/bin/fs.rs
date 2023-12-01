@@ -3,7 +3,7 @@ use fuser::MountOption;
 use rsa::pkcs1v15;
 use rsa::pkcs8::DecodePrivateKey;
 use rsa::sha2::Sha256;
-use lib::cache::INodeCache;
+use lib::inode_cache::INodeCache;
 use lib::client::{BlockClient, FSMiddlewareClient, INodeClient};
 use lib::fs::DCFS2;
 
@@ -43,8 +43,8 @@ fn main() {
         options.push(MountOption::AllowRoot);
     }
     fuser::mount2(DCFS2{
-        block_client: BlockClient::connect("http://127.0.0.1:50051"),
-        inode_cache: INodeCache::new(INodeClient::connect("http://127.0.0.1:50052"), "root".into()),
+        block_client: BlockClient::connect("https://127.0.0.1:50051"),
+        inode_cache: INodeCache::new(INodeClient::connect("https://127.0.0.1:50052"), "root".into()),
         middleware_client: Some(FSMiddlewareClient::connect("http://127.0.0.1:50060")),
         signing_key: Some(client1_signing_key)
     }, mountpoint, &options).unwrap();
