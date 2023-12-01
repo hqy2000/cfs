@@ -8,6 +8,7 @@ use lib::client::{BlockClient, FSMiddlewareClient, INodeClient};
 use lib::fs::DCFS2;
 
 fn main() {
+    env_logger::init();
     let client1_signing_key = pkcs1v15::SigningKey::<Sha256>::from_pkcs8_pem(include_str!("../../key/client1_private.pem")).unwrap();
 
     let matches = Command::new("hello")
@@ -34,6 +35,7 @@ fn main() {
     let mountpoint = matches.get_one::<String>("MOUNT_POINT").unwrap();
     let mut options = vec![
         MountOption::RW, // RO or RW
+        MountOption::DefaultPermissions,
         MountOption::FSName("hello".to_string()) // todo: what's this?
     ];
     if matches.get_flag("auto_unmount") {

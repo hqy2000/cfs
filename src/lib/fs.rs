@@ -1,10 +1,11 @@
 use std::cmp::min;
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
-use fuser::{Filesystem, ReplyAttr, ReplyCreate, ReplyData, ReplyDirectory, ReplyEntry, ReplyWrite, Request};
-use libc::ENOENT;
+use fuser::{Filesystem, ReplyAttr, ReplyCreate, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry, ReplyWrite, Request, TimeOrNow};
+use libc::{ENOENT, ENOSYS};
+use log::debug;
 use rsa::pkcs1v15::SigningKey;
 use rsa::sha2::Sha256;
 
@@ -133,6 +134,7 @@ impl Filesystem for DCFS2 {
 
         for (i, entry) in children.into_iter().enumerate().skip(offset as usize) {
             // i + 1 means the index of the next entry
+            if entry.is_deleted() {continue;}
             if reply.add(entry.ino, (i + 1) as i64, entry.get_file_type(),
                          OsStr::from_bytes(&entry.block.filename)) {
                 break;
@@ -273,6 +275,31 @@ impl Filesystem for DCFS2 {
         reply.written(data.len() as u32);
     }
 
+    fn setattr(&mut self, req: &Request<'_>, ino: u64, mode: Option<u32>, uid: Option<u32>, gid: Option<u32>, size: Option<u64>, _atime: Option<TimeOrNow>, _mtime: Option<TimeOrNow>, _ctime: Option<SystemTime>, fh: Option<u64>, _crtime: Option<SystemTime>, _chgtime: Option<SystemTime>, _bkuptime: Option<SystemTime>, flags: Option<u32>, reply: ReplyAttr) {
+        if let Some(size) = size {
+            let mut id = Id {
+                pub_key: Vec::from(include_str!("../../key/client1_public.pem")), // todo: store this along key.
+                uid: req.uid() as u64,
+                signature: vec![],
+            };
+            id.sign(self.signing_key.as_ref().unwrap());
 
+            let mut inode_block = self.inode_cache.get_inode(ino);
+            inode_block.block.size = size;
+
+            let mut block = DataCapsuleFileSystemBlock {
+                prev_hash: self.inode_cache.get_inode(inode_block.parent_ino).hash,
+                block: Some(Block::Inode(inode_block.block)),
+                updated_by: Some(id),
+                signature: vec![],
+            };
+            block.sign(self.signing_key.as_ref().unwrap());
+
+            let response = self.middleware_client.as_mut().unwrap().put_inode(block).unwrap();
+            self.inode_cache.resolve(response.clone());
+
+        }
+        reply.attr(&TTL, &self.inode_cache.get_inode(ino).to_file_attr())
+    }
 }
 

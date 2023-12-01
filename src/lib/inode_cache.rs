@@ -48,17 +48,23 @@ impl INode {
     pub fn get_file_type(&self) -> FileType {
         return if self.block.kind == Kind::Directory.into() {
             FileType::Directory
-        } else {
+        } else if self.block.kind == Kind::RegularFile.into() {
             FileType::RegularFile
+        } else {
+            FileType::RegularFile // deleted file!!
         }
     }
 
     pub fn get_perm(&self) -> u16 {
-        if self.get_file_type() == Directory {
-            return 0o755;
+        return if self.get_file_type() == Directory {
+            0o755
         } else {
-            return 0o644;
+            0o644
         }
+    }
+
+    pub fn is_deleted(&self) -> bool {
+        return self.block.kind == Kind::DeletedFolder.into() || self.block.kind == Kind::DeletedRegularFile.into();
     }
 }
 
