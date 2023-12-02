@@ -1,0 +1,234 @@
+{
+	"inputs" : 
+	[
+		{
+			"path" : "CMakeLists.txt"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/CMakeFiles/3.26.4/CMakeSystem.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CMakeSystemSpecificInitialize.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/CMakeFiles/3.26.4/CMakeCCompiler.cmake"
+		},
+		{
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/CMakeFiles/3.26.4/CMakeCXXCompiler.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CMakeSystemSpecificInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CMakeGenericSystem.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CMakeInitializeConfigs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Platform/Linux.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Platform/UnixPaths.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CMakeCInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CMakeLanguageInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Compiler/GNU-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Compiler/GNU.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Platform/Linux-GNU-C.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Platform/Linux-GNU.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CMakeCommonLanguageInclude.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CMakeCXXInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CMakeLanguageInformation.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Compiler/GNU-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Compiler/GNU.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Platform/Linux-GNU-CXX.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Platform/Linux-GNU.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CMakeCommonLanguageInclude.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindProtobuf.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/SelectLibraryConfigurations.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindThreads.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CheckLibraryExists.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CheckIncludeFile.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/CheckCSourceCompiles.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/Internal/CheckSourceCompiles.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"path" : "cmake/FindFUSE3.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindOpenSSL.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindPkgConfig.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindPackageMessage.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindPackageHandleStandardArgs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/share/cmake-3.26/Modules/FindPackageMessage.cmake"
+		}
+	],
+	"kind" : "cmakeFiles",
+	"paths" : 
+	{
+		"build" : "/home/yms/dcfs2/cmake-build-debug",
+		"source" : "/home/yms/dcfs2"
+	},
+	"version" : 
+	{
+		"major" : 1,
+		"minor" : 0
+	}
+}

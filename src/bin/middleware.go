@@ -14,15 +14,15 @@ import (
 )
 
 func main() {
-	lis, err := net.Listen("tcp", ":50060")
+	lis, err := net.Listen("tcp", ":50065")
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
 	go_proto.RegisterMiddlewareServer(s, &lib.MiddlewareServer{
-		InodeClient: connect("127.0.0.1:50052"),
-		DataClient:  connect("127.0.0.1:50051"),
-		PrivateKey:  loadPrivateKey("key/server_private.pem"),
+		InodeClient: connect("127.0.0.1:50057"),
+		DataClient:  connect("127.0.0.1:50056"),
+		PrivateKey:  loadPrivateKey("../../key/server_private.pem"),
 	})
 	log.Println(s.GetServiceInfo())
 	s.GetServiceInfo()

@@ -43,9 +43,9 @@ fn main() {
         options.push(MountOption::AllowRoot);
     }
     fuser::mount2(DCFS2{
-        block_client: BlockClient::connect("https://127.0.0.1:50051"),
-        inode_cache: INodeCache::new(INodeClient::connect("https://127.0.0.1:50052"), "root".into()),
-        middleware_client: Some(FSMiddlewareClient::connect("http://127.0.0.1:50060")),
+        block_client: BlockClient::connect("https://127.0.0.1:50056"),
+        inode_cache: INodeCache::new(INodeClient::connect("https://127.0.0.1:50057"), "root".into()),
+        middleware_client: Some(FSMiddlewareClient::connect("http://127.0.0.1:50065")),
         signing_key: Some(client1_signing_key)
     }, mountpoint, &options).unwrap();
 }

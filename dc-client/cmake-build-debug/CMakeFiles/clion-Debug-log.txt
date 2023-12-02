@@ -1,0 +1,19 @@
+/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/home/yms/.cache/JetBrains/RemoteDev/dist/b21c2b5ff1f19_CLion-2023.2.2/bin/ninja/linux/x64/ninja -G Ninja -S /home/yms/dcfs2/dc-client -B /home/yms/dcfs2/dc-client/cmake-build-debug
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found Protobuf: /usr/lib/x86_64-linux-gnu/libprotobuf.so (found version "3.12.4") 
+-- Found FUSE3: /usr/include/fuse3  
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.2")  
+-- Configuring done (1.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/yms/dcfs2/dc-client/cmake-build-debug

@@ -1,0 +1,3 @@
+/home/yms/dcfs2/dc-client/cmake-build-debug/CMakeFiles/dcfs2.dir
+/home/yms/dcfs2/dc-client/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/yms/dcfs2/dc-client/cmake-build-debug/CMakeFiles/rebuild_cache.dir

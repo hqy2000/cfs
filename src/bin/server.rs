@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     hqyId.sign(&client1_signing_key);
 
-    let data_capsule_addr = "127.0.0.1:50051".parse()?;
+    let data_capsule_addr = "127.0.0.1:50056".parse()?;
     let data_capsule = MyDataCapsule {
         data: Arc::new(Mutex::new(
             DataCapsuleServerData {
@@ -46,7 +46,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                              fs: Some(DataCapsuleFileSystemBlock{
                                  prev_hash: "".to_string(),
                                  block: Some(Block::Data(DataBlock {
-                                     data: vec![u8::try_from('a').unwrap(); 512]
+                                     // data: vec![u8::try_from('a').unwrap(); 512]
+                                     data: Vec::from(include_str!("../../data/data1k.txt"))
                                  })),
                                  updated_by: None,
                                  signature: vec![],
@@ -59,7 +60,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                    fs: Some(DataCapsuleFileSystemBlock{
                                        prev_hash: "".to_string(),
                                        block: Some(Block::Data(DataBlock {
-                                           data: vec![u8::try_from('b').unwrap(); 720 - 512]
+                                           // data: vec![u8::try_from('b').unwrap(); 720 - 512]
+                                           data: Vec::from(include_str!("../../data/data4g.txt"))
                                        })),
                                        updated_by: None,
                                        signature: vec![],
@@ -74,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         verifying_key: server_key.clone()
     };
 
-    let inode_capsule_addr = "127.0.0.1:50052".parse()?;
+    let inode_capsule_addr = "127.0.0.1:50057".parse()?;
     let inode_capsule = MyDataCapsule {
         data: Arc::new(Mutex::new(
             DataCapsuleServerData {
@@ -105,7 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 signature: vec![],
                                 block: Some(Block::Inode(INodeBlock {
                                     filename: Vec::from("dc_file.txt"),
-                                    size: 720,
+                                    size: 4294968320,
                                     kind: Kind::RegularFile.into(),
                                     hashes: vec!["file_hash1".into(), "file_hash2".into()],
                                     write_allow_list: vec![hqyId.clone()],
