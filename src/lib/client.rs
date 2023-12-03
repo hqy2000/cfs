@@ -1,11 +1,14 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use duplicate::duplicate_item;
+use rsa::pkcs1v15::SigningKey;
+use rsa::sha2::Sha256;
 
 use tokio::runtime::Runtime;
 use tonic::codegen::StdError;
+use crate::crypto::SignableBlock;
 
-use crate::proto::block::{DataCapsuleBlock, DataCapsuleFileSystemBlock};
+use crate::proto::block::{DataCapsuleBlock, DataCapsuleFileSystemBlock, Id};
 use crate::proto::block::data_capsule_file_system_block::Block;
 use crate::proto::data_capsule::{GetRequest, LeafsRequest};
 use crate::proto::data_capsule::data_capsule_client::DataCapsuleClient;
@@ -27,7 +30,6 @@ impl Error for ClientError {}
     T C;
     [BlockClient] [DataCapsuleClient];
     [INodeClient] [DataCapsuleClient];
-    [FSMiddlewareClient] [MiddlewareClient];
 )]
 pub struct T {
     client: C<tonic::transport::Channel>,
@@ -38,7 +40,6 @@ pub struct T {
     T C;
     [BlockClient] [DataCapsuleClient];
     [INodeClient] [DataCapsuleClient];
-    [FSMiddlewareClient] [MiddlewareClient];
 )]
 impl T {
     pub fn connect<D>(addr: D) -> T where
@@ -91,8 +92,34 @@ impl BlockClient {
     }
 }
 
+pub struct FSMiddlewareClient {
+    client: MiddlewareClient<tonic::transport::Channel>,
+    runtime: Runtime,
+    public_key_pkcs8: String,
+    signing_key: SigningKey<Sha256>,
+}
+
 impl FSMiddlewareClient {
-    pub fn put_inode(&mut self, block: DataCapsuleFileSystemBlock) -> Result<String, Box<dyn Error>> {
+    pub fn connect<D>(addr: D, public_key_pkcs8: String, signing_key: SigningKey<Sha256>) -> FSMiddlewareClient where
+        D: TryInto<tonic::transport::Endpoint>,
+        D::Error: Into<StdError>, {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        let client = runtime.block_on(async { return MiddlewareClient::connect(addr).await.unwrap(); });
+
+        return FSMiddlewareClient {
+            client,
+            runtime,
+            public_key_pkcs8,
+            signing_key
+        };
+    }
+
+    pub fn put_inode(&mut self, mut block: DataCapsuleFileSystemBlock) -> Result<String, Box<dyn Error>> {
+        block.sign(&self.signing_key.clone());
         return self.runtime.block_on(async {
             if let Block::Inode(ref _data) = block.block.as_ref().unwrap() {
                 let request = tonic::Request::new(PutINodeRequest {
@@ -106,7 +133,8 @@ impl FSMiddlewareClient {
         });
     }
 
-    pub fn put_data(&mut self, block: DataCapsuleFileSystemBlock, ref_inode_hash: String) -> Result<String, Box<dyn Error>> {
+    pub fn put_data(&mut self, mut block: DataCapsuleFileSystemBlock, ref_inode_hash: String) -> Result<String, Box<dyn Error>> {
+        block.sign(&self.signing_key.clone());
         return self.runtime.block_on(async {
             if let Block::Data(ref _data) = block.block.as_ref().unwrap() {
                 let request = tonic::Request::new(PutDataRequest {
@@ -119,5 +147,16 @@ impl FSMiddlewareClient {
                 panic!("received inode in put_data")
             }
         });
+    }
+
+
+    pub fn get_id(&mut self, uid: u64) -> Id {
+        let mut id = Id {
+            pub_key: Vec::from(self.public_key_pkcs8.clone()),
+            uid,
+            signature: vec![],
+        };
+        id.sign(&self.signing_key);
+        return id;
     }
 }
