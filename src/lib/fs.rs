@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::time::{Duration, SystemTime};
@@ -5,6 +6,7 @@ use std::time::{Duration, SystemTime};
 use fuser::{Filesystem, FileType, ReplyAttr, ReplyCreate, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry, ReplyWrite, Request, TimeOrNow};
 use fuser::FileType::{Directory, RegularFile};
 use libc::ENOENT;
+use log::debug;
 
 use crate::cache::Cache;
 use crate::proto::block::i_node_block::Kind;
@@ -80,6 +82,7 @@ impl Filesystem for DCFS2 {
 
     fn write(&mut self, req: &Request<'_>, ino: u64, _fh: u64, offset: i64, data: &[u8], _write_flags: u32, _flags: i32, _lock_owner: Option<u64>, reply: ReplyWrite) {
         let inode = self.cache.get_inode(ino).0;
+        debug!("write {}, offset: {}, len: {}", String::from_utf8(inode.block.filename.clone()).unwrap(), offset, data.len());
         if inode.block.kind != Kind::RegularFile.into() {
             reply.error(ENOENT);
             return;
@@ -89,7 +92,7 @@ impl Filesystem for DCFS2 {
 
         let mut block = inode.block.clone();
         block.hashes = file_view.hashes.clone();
-        block.size = (offset + data.len() as i64) as u64;
+        block.size = max((offset + data.len() as i64) as u64, block.size);
         self.cache.update(req.uid(), ino, block);
         reply.written(data.len() as u32);
     }

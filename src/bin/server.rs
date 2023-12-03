@@ -27,12 +27,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client1_public_pem = include_str!("../../key/client1_public.pem");
     let client1_signing_key = pkcs1v15::SigningKey::<Sha256>::from_pkcs8_pem(include_str!("../../key/client1_private.pem")).unwrap();
 
-    let mut hqyId = Id {
+    let mut hqy_id = Id {
         pub_key: Vec::from(client1_public_pem),
         uid: 1000, // hqy2000: 1000; hyc: 1002; yms: 1003
         signature: vec![],
     };
-    hqyId.sign(&client1_signing_key);
+    hqy_id.sign(&client1_signing_key);
 
     let data_capsule_addr = "127.0.0.1:50051".parse()?;
     let data_capsule = MyDataCapsule {
@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                    fs: Some(DataCapsuleFileSystemBlock{
                                        prev_hash: "".to_string(),
                                        block: Some(Block::Data(DataBlock {
-                                           data: vec![u8::try_from('b').unwrap(); 720 - 512]
+                                           data: vec![u8::try_from('b').unwrap(); 512]
                                        })),
                                        updated_by: None,
                                        signature: vec![],
@@ -91,7 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                      size: 0,
                                      kind: Kind::Directory.into(),
                                      hashes: vec![],
-                                     write_allow_list: vec![hqyId.clone()],
+                                     write_allow_list: vec![hqy_id.clone()],
                                  })),
                              }),
                             timestamp: 0,
@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     size: 720,
                                     kind: Kind::RegularFile.into(),
                                     hashes: vec!["file_hash1".into(), "file_hash2".into()],
-                                    write_allow_list: vec![hqyId.clone()],
+                                    write_allow_list: vec![hqy_id.clone()],
                                 })),
                             }),
                             timestamp: 0,
@@ -125,7 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     size: 0,
                                     kind: Kind::Directory.into(),
                                     hashes: vec![],
-                                    write_allow_list: vec![hqyId.clone()],
+                                    write_allow_list: vec![hqy_id.clone()],
                                 })),
                             }),
                             signature: vec![],

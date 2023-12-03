@@ -57,9 +57,9 @@ impl INode {
 
     pub fn get_perm(&self) -> u16 {
         return if self.get_file_type() == Directory {
-            0o755
+            0o700
         } else {
-            0o644
+            0o700
         }
     }
 
@@ -125,21 +125,49 @@ impl FileView {
     }
 
     pub fn write(&mut self, uid: u32, offset: i64, data: &[u8]) {
-        let start_idx = (offset / BLOCK_SIZE) as usize;
+        let mut block_id = (offset / BLOCK_SIZE) as usize;
+        while self.hashes.len() <= block_id { // 0 fill if offset is past EOF
+            let hash = self.write_block(uid, vec![0u8; BLOCK_SIZE as usize]);
+            self.hashes.push(hash);
+        }
+
         let mut next = 0;
 
 
         // read partial block first
-        debug!("Getting partial block {} for offset {}\n", start_idx, offset);
-        let mut block = self.read_block(start_idx, (offset % BLOCK_SIZE) as u64);
-        self.hashes.truncate(start_idx);
+        debug!("Getting partial block {} for offset {}\n", block_id, offset);
+        let mut block = self.read_block(block_id, 0);
+        block.truncate((offset % BLOCK_SIZE) as usize);
 
         while next < data.len() {
             let remaining_bytes = BLOCK_SIZE as usize - block.len();
-            block.extend_from_slice(&data[next..min(data.len(), next + remaining_bytes)]);
+            if data.len() >= next + remaining_bytes { // enough bytes to fill all
+                block.extend_from_slice(&data[next..(next + remaining_bytes)]);
+            } else { // need to check if we still have existing data
+                block.extend_from_slice(&data[next..]);
+                if block_id < self.hashes.len() {
+                    debug!("Getting partial block {} for offset {}\n", block_id, offset);
+                    let prev_block = self.read_block(block_id, block.len() as u64);
+                    block.extend_from_slice(&prev_block)
+                }
+            }
+
+            if block.len() != BLOCK_SIZE as usize {
+                debug!("Fill block with 0s");
+                block.extend_from_slice(&vec![0u8; BLOCK_SIZE as usize - block.len()]);
+            }
+
+            debug!("Publish block len = {}", block.len());
             let hash = self.write_block(uid, block);
-            self.hashes.push(hash);
+
+            if block_id < self.hashes.len() { // within bounds, replace existing
+                self.hashes[block_id] = hash;
+            } else {
+                self.hashes.push(hash);
+            }
+
             next += remaining_bytes;
+            block_id += 1;
             block = vec![];
         }
     }
