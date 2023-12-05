@@ -19,7 +19,7 @@ name = "lib"
 path = "src/lib/lib.rs"
 
 [dependencies]
-tonic = "0.10"
+tonic = { version = "0.10", features = ["tls"] }
 prost = "0.12"
 tokio = { version = "1.0", features = ["full"] }
 ring = "0.17"
@@ -32,6 +32,7 @@ rsa = { version = "0.9", features = ["pem", "sha2"] }
 duplicate = "1.0"
 log = "0.4.20"
 env_logger = "0.10.1"
+lru = "0.12"
 
 [build-dependencies]
 tonic-build = "0.10"

@@ -2,15 +2,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use futures::future::join_all;
-use prost::Message;
 use rsa::{
     pkcs1v15,
     pkcs8::{DecodePrivateKey, DecodePublicKey},
 };
 use rsa::sha2::Sha256;
-use rsa::signature::{SignatureEncoding, Signer};
 use tokio::sync::Mutex;
-use tonic::transport::Server;
+use tonic::{
+    transport::{
+        Identity, Server, ServerTlsConfig,
+    },
+};
 
 use lib::crypto::SignableBlock;
 use lib::proto::block::{DataBlock, DataCapsuleBlock, DataCapsuleFileSystemBlock, Id, INodeBlock};
@@ -141,34 +143,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut v = Vec::new();
 
-    v.push(Server::builder()
-        .add_service(DataCapsuleServer::new(data_capsule))
-        .serve(data_capsule_addr));
+    let identity = Identity::from_pem(
+        include_str!("../../key/loopback.hqy.moe_fullchain.pem"),
+        include_str!("../../key/loopback.hqy.moe_privkey.pem")
+    );
 
     v.push(Server::builder()
+        .tls_config(ServerTlsConfig::new().identity(identity.clone()))?
+        .add_service(DataCapsuleServer::new(data_capsule))
+        .serve(data_capsule_addr)
+    );
+
+    v.push(Server::builder()
+        .tls_config(ServerTlsConfig::new().identity(identity))?
         .add_service(DataCapsuleServer::new(inode_capsule))
         .serve(inode_capsule_addr));
 
     join_all(v).await;
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    // use crate::server::server::data_capsule_client::DataCapsuleClient;
-    // use crate::server::server::GetRequest;
-
-    #[tokio::test]
-    async fn test_get() -> Result<(), Box<dyn std::error::Error>> {
-        // let mut client = DataCapsuleClient::connect("http://[::1]:50051").await?;
-        //
-        // let request = tonic::Request::new(GetRequest {
-        //     block_hash: "testhash".to_string()
-        // });
-        //
-        // let response = client.get(request).await?;
-        //
-        // println!("RESPONSE={:?}", response);
-        Ok(())
-    }
 }

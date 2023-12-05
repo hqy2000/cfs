@@ -1,11 +1,14 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use std::num::NonZeroUsize;
 use duplicate::duplicate_item;
+use lru::LruCache;
 use rsa::pkcs1v15::SigningKey;
 use rsa::sha2::Sha256;
 
 use tokio::runtime::Runtime;
 use tonic::codegen::StdError;
+use tonic::transport::{Channel, ClientTlsConfig};
 use crate::crypto::SignableBlock;
 
 use crate::proto::block::{DataCapsuleBlock, DataCapsuleFileSystemBlock, Id};
@@ -27,34 +30,41 @@ impl Display for ClientError {
 impl Error for ClientError {}
 
 #[duplicate_item(
-    T C;
-    [BlockClient] [DataCapsuleClient];
-    [INodeClient] [DataCapsuleClient];
+T C;
+[BlockClient] [DataCapsuleClient];
+[INodeClient] [DataCapsuleClient];
 )]
 pub struct T {
     client: C<tonic::transport::Channel>,
     runtime: Runtime,
+    cache: LruCache<String, DataCapsuleBlock>,
 }
 
 #[duplicate_item(
-    T C;
-    [BlockClient] [DataCapsuleClient];
-    [INodeClient] [DataCapsuleClient];
+T C;
+[BlockClient] [DataCapsuleClient];
+[INodeClient] [DataCapsuleClient];
 )]
 impl T {
-    pub fn connect<D>(addr: D) -> T where
-        D: TryInto<tonic::transport::Endpoint>,
-        D::Error: Into<StdError>, {
+    pub fn connect(addr: &'static str, tls_config: ClientTlsConfig, cache_size: usize) -> T {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
 
-        let client = runtime.block_on(async { return C::connect(addr).await.unwrap(); });
+        let channel = runtime.block_on(async {
+            return Channel::from_static(addr)
+                .tls_config(tls_config).unwrap()
+                .connect()
+                .await;
+        }).unwrap();
+
+        let client = C::new(channel);
 
         return T {
             client,
             runtime,
+            cache: LruCache::new(NonZeroUsize::new(cache_size).unwrap()),
         };
     }
 }
@@ -62,14 +72,18 @@ impl T {
 #[duplicate_item(T; [BlockClient]; [INodeClient])]
 impl T {
     pub fn get(&mut self, hash: &str) -> Result<DataCapsuleBlock, Box<dyn Error>> {
-        return self.runtime.block_on(async {
-            let request = tonic::Request::new(GetRequest {
-                block_hash: hash.to_string()
-            });
-            let response = self.client.get(request).await?;
+        if let Some(block) = self.cache.get(hash) {
+            return Ok(block.clone());
+        } else {
+            return self.runtime.block_on(async {
+                let request = tonic::Request::new(GetRequest {
+                    block_hash: hash.to_string()
+                });
+                let response = self.client.get(request).await?;
 
-            Ok(response.get_ref().clone().block.unwrap())
-        });
+                Ok(response.get_ref().clone().block.unwrap())
+            });
+        }
     }
 
     pub fn get_leafs(&mut self) -> Result<Vec<String>, Box<dyn Error>> {
@@ -100,21 +114,26 @@ pub struct FSMiddlewareClient {
 }
 
 impl FSMiddlewareClient {
-    pub fn connect<D>(addr: D, public_key_pkcs8: String, signing_key: SigningKey<Sha256>) -> FSMiddlewareClient where
-        D: TryInto<tonic::transport::Endpoint>,
-        D::Error: Into<StdError>, {
+    pub fn connect(addr: &'static str, tls_config: ClientTlsConfig, public_key_pkcs8: String, signing_key: SigningKey<Sha256>) -> FSMiddlewareClient {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
 
-        let client = runtime.block_on(async { return MiddlewareClient::connect(addr).await.unwrap(); });
+        let channel = runtime.block_on(async {
+            return Channel::from_static(addr)
+                .tls_config(tls_config).unwrap()
+                .connect()
+                .await;
+        }).unwrap();
+
+        let client = MiddlewareClient::new(channel);
 
         return FSMiddlewareClient {
             client,
             runtime,
             public_key_pkcs8,
-            signing_key
+            signing_key,
         };
     }
 

@@ -3,6 +3,7 @@ use fuser::MountOption;
 use rsa::pkcs1v15;
 use rsa::pkcs8::DecodePrivateKey;
 use rsa::sha2::Sha256;
+use tonic::transport::{Certificate, ClientTlsConfig};
 
 use lib::cache::Cache;
 use lib::client::{BlockClient, FSMiddlewareClient, INodeClient};
@@ -29,11 +30,14 @@ fn main() {
         MountOption::FSName("hello".to_string()) // todo: what's this?
     ];
 
+    let ca = Certificate::from_pem(include_str!("../../key/loopback.hqy.moe_chain.pem"));
+    let tls_config = ClientTlsConfig::new().ca_certificate(ca);
+
     fuser::mount2(DCFS2{
         cache: Cache::new(
-            INodeClient::connect("https://127.0.0.1:50052"),
-            BlockClient::connect("https://127.0.0.1:50051"),
-            Some(FSMiddlewareClient::connect("https://127.0.0.1:50060",
+            INodeClient::connect("https://loopback.hqy.moe:50052", tls_config.clone(), 5),
+            BlockClient::connect("https://loopback.hqy.moe:50051", tls_config.clone(), 100),
+            Some(FSMiddlewareClient::connect("https://loopback.hqy.moe:50060", tls_config,
                                              include_str!("../../key/client1_public.pem").parse().unwrap(),
             client1_signing_key)),
             "root".into(),
