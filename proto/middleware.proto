@@ -22,9 +22,11 @@ message PutDataRequest {
 message PutINodeResponse {
   bool success = 1;
   optional string hash = 2;
+  optional block.DataCapsuleBlock block = 3;
 }
 
 message PutDataResponse {
   bool success = 1;
   optional string hash = 2;
+  optional block.DataCapsuleBlock block = 3;
 }

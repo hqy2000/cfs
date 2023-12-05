@@ -76,7 +76,7 @@ impl Filesystem for DCFS2 {
     }
 
     fn read(&mut self, _req: &Request, ino: u64, _fh: u64, offset: i64, size: u32, _flags: i32, _lock: Option<u64>, reply: ReplyData) {
-        let mut file_view = self.cache.get_file_view(ino);
+        let mut file_view = self.cache.get_inode(ino).0;
         reply.data(&file_view.read(offset, size));
     }
 
@@ -87,12 +87,11 @@ impl Filesystem for DCFS2 {
             reply.error(ENOENT);
             return;
         }
-        let mut file_view = self.cache.get_file_view(ino);
-        file_view.write(req.uid(), offset, data);
+        let mut inode = self.cache.get_inode(ino).0;
+        inode.write(req.uid(), offset, data);
+        inode.block.size = max((offset + data.len() as i64) as u64, inode.block.size);
 
         let mut block = inode.block.clone();
-        block.hashes = file_view.hashes.clone();
-        block.size = max((offset + data.len() as i64) as u64, block.size);
         self.cache.update(req.uid(), ino, block);
         reply.written(data.len() as u32);
     }
@@ -106,7 +105,7 @@ impl Filesystem for DCFS2 {
 
         let mut children = self.cache.get_inode(ino).1;
 
-        let mut parent_inode = self.cache.get_inode(inode.parent_ino).0;
+        let mut parent_inode = self.cache.get_inode(self.cache.get_ino(inode.parent_hash.clone())).0;
         parent_inode.block.filename = Vec::from("..");
         children.insert(0, parent_inode);
         inode.block.filename = Vec::from(".");

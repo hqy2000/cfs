@@ -15,6 +15,7 @@ use tonic::{
 };
 
 use lib::crypto::SignableBlock;
+use lib::fs::BLOCK_SIZE;
 use lib::proto::block::{DataBlock, DataCapsuleBlock, DataCapsuleFileSystemBlock, Id, INodeBlock};
 use lib::proto::block::data_capsule_file_system_block::Block;
 use lib::proto::block::i_node_block::Kind;
@@ -48,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                              fs: Some(DataCapsuleFileSystemBlock{
                                  prev_hash: "".to_string(),
                                  block: Some(Block::Data(DataBlock {
-                                     data: vec![u8::try_from('a').unwrap(); 512]
+                                     data: vec![u8::try_from('a').unwrap(); BLOCK_SIZE]
                                  })),
                                  updated_by: None,
                                  signature: vec![],
@@ -61,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                    fs: Some(DataCapsuleFileSystemBlock{
                                        prev_hash: "".to_string(),
                                        block: Some(Block::Data(DataBlock {
-                                           data: vec![u8::try_from('b').unwrap(); 512]
+                                           data: vec![u8::try_from('b').unwrap(); BLOCK_SIZE]
                                        })),
                                        updated_by: None,
                                        signature: vec![],
@@ -107,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 signature: vec![],
                                 block: Some(Block::Inode(INodeBlock {
                                     filename: Vec::from("dc_file.txt"),
-                                    size: 720,
+                                    size: BLOCK_SIZE * 1.5,
                                     kind: Kind::RegularFile.into(),
                                     hashes: vec!["file_hash1".into(), "file_hash2".into()],
                                     write_allow_list: vec![hqy_id.clone()],

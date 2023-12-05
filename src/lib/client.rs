@@ -16,7 +16,7 @@ use crate::proto::block::{DataCapsuleBlock, DataCapsuleFileSystemBlock, Id};
 use crate::proto::block::data_capsule_file_system_block::Block;
 use crate::proto::data_capsule::{GetRequest, LeafsRequest};
 use crate::proto::data_capsule::data_capsule_client::DataCapsuleClient;
-use crate::proto::middleware::{PutDataRequest, PutINodeRequest};
+use crate::proto::middleware::{PutDataRequest, PutDataResponse, PutINodeRequest, PutINodeResponse};
 use crate::proto::middleware::middleware_client::MiddlewareClient;
 
 #[derive(Debug, Clone)]
@@ -168,16 +168,16 @@ impl FSMiddlewareClient {
         };
     }
 
-    pub async fn put_inode(&self, mut block: DataCapsuleFileSystemBlock) -> Result<String, Box<dyn Error + Send + Sync>> {
+    pub async fn put_inode(&self, mut block: DataCapsuleFileSystemBlock) -> Result<PutINodeResponse, Box<dyn Error + Send + Sync>> {
         block.sign(&self.signing_key.clone());
         if let Block::Inode(ref _data) = block.block.as_ref().unwrap() {
             let mut client = self.client.clone();
             let request = tonic::Request::new(PutINodeRequest {
                 block: Some(block)
             });
-            let handle: JoinHandle<Result<String, Box<dyn Error + Send + Sync>>> = self.runtime.spawn(async move {
+            let handle: JoinHandle<Result<PutINodeResponse, Box<dyn Error + Send + Sync>>> = self.runtime.spawn(async move {
                 let response = client.put_i_node(request).await?;
-                Ok(response.get_ref().clone().hash.unwrap())
+                Ok(response.get_ref().clone())
             });
 
             Ok(handle.await??)
@@ -186,7 +186,7 @@ impl FSMiddlewareClient {
         }
     }
 
-    pub async fn put_data(&self, mut block: DataCapsuleFileSystemBlock, ref_inode_hash: String) -> Result<String, Box<dyn Error + Send + Sync>> {
+    pub async fn put_data(&self, mut block: DataCapsuleFileSystemBlock, ref_inode_hash: String) -> Result<PutDataResponse, Box<dyn Error + Send + Sync>> {
         block.sign(&self.signing_key.clone());
         if let Block::Data(ref _data) = block.block.as_ref().unwrap() {
             let mut client = self.client.clone();
@@ -194,9 +194,9 @@ impl FSMiddlewareClient {
                 block: Some(block),
                 inode_hash: ref_inode_hash,
             });
-            let handle: JoinHandle<Result<String, Box<dyn Error + Send + Sync>>> = self.runtime.spawn(async move {
+            let handle: JoinHandle<Result<PutDataResponse, Box<dyn Error + Send + Sync>>> = self.runtime.spawn(async move {
                 let response = client.put_data(request).await?;
-                Ok(response.get_ref().clone().hash.unwrap())
+                Ok(response.get_ref().clone())
             });
             Ok(handle.await??)
         } else {

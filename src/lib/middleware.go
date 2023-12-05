@@ -45,7 +45,8 @@ func (s *MiddlewareServer) PutINode(ctx context.Context, in *pb.PutINodeRequest)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	result, err := s.InodeClient.Put(ctx, &pb.PutRequest{Block: s.finalizeBlock(in.Block)})
+	block := s.finalizeBlock(in.Block)
+	result, err := s.InodeClient.Put(ctx, &pb.PutRequest{Block: block})
 	if err != nil {
 		panic(err)
 	}
@@ -55,6 +56,7 @@ func (s *MiddlewareServer) PutINode(ctx context.Context, in *pb.PutINodeRequest)
 	return &pb.PutINodeResponse{
 		Success: result.Success,
 		Hash:    &result.Hash,
+		Block:   block,
 	}, nil
 }
 
@@ -80,7 +82,8 @@ func (s *MiddlewareServer) PutData(ctx context.Context, in *pb.PutDataRequest) (
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	result, err := s.DataClient.Put(ctx, &pb.PutRequest{Block: s.finalizeBlock(in.Block)})
+	block := s.finalizeBlock(in.Block)
+	result, err := s.DataClient.Put(ctx, &pb.PutRequest{Block: block})
 	if err != nil {
 		panic(err)
 	}
@@ -88,6 +91,7 @@ func (s *MiddlewareServer) PutData(ctx context.Context, in *pb.PutDataRequest) (
 	return &pb.PutDataResponse{
 		Success: result.Success,
 		Hash:    &result.Hash,
+		Block:   block,
 	}, nil
 }
 

@@ -2,192 +2,15 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::sync::Arc;
-use std::time::UNIX_EPOCH;
 
-use fuser::{FileAttr, FileType};
-use fuser::FileType::{Directory, RegularFile};
+use fuser::FileType::RegularFile;
 use futures::executor::block_on;
-use futures::future::join_all;
-use log::debug;
 
 use crate::client::{BlockClient, FSMiddlewareClient, INodeClient};
-use crate::fs::BLOCK_SIZE;
-use crate::proto::block::{DataBlock, DataCapsuleFileSystemBlock, INodeBlock};
+use crate::inode::INode;
+use crate::proto::block::{DataCapsuleBlock, DataCapsuleFileSystemBlock, INodeBlock};
 use crate::proto::block::data_capsule_file_system_block::Block;
 use crate::proto::block::i_node_block::Kind;
-
-#[derive(Clone)]
-pub struct INode {
-    pub hash: String,
-    pub ino: u64,
-    pub parent_ino: u64,
-    pub block: INodeBlock,
-    pub timestamp: i64,
-}
-
-impl INode {
-    pub fn to_file_attr(&self) -> FileAttr {
-        FileAttr{
-            ino: self.ino,
-            size: self.block.size,
-            blocks: (self.block.size + BLOCK_SIZE as u64 - 1) / BLOCK_SIZE as u64, // round up
-            atime: UNIX_EPOCH, // 1970-01-01 00:00:00
-            mtime: UNIX_EPOCH,
-            ctime: UNIX_EPOCH,
-            crtime: UNIX_EPOCH,
-            kind: self.get_file_type(),
-            perm: self.get_perm(),
-            nlink: 2,
-            uid: 1000,
-            gid: 1000,
-            rdev: 0,
-            flags: 0,
-            blksize: BLOCK_SIZE as u32,
-        }
-    }
-
-    pub fn get_file_type(&self) -> FileType {
-        return if self.block.kind == Kind::Directory.into() {
-            FileType::Directory
-        } else if self.block.kind == Kind::RegularFile.into() {
-            FileType::RegularFile
-        } else {
-            FileType::RegularFile // deleted file!!
-        }
-    }
-
-    pub fn get_perm(&self) -> u16 {
-        return if self.get_file_type() == Directory {
-            0o700
-        } else {
-            0o700
-        }
-    }
-
-    pub fn is_deleted(&self) -> bool {
-        return self.block.kind == Kind::DeletedFolder.into() || self.block.kind == Kind::DeletedRegularFile.into();
-    }
-}
-
-pub struct FileView {
-    inode_hash: String,
-    pub hashes: Vec<String>,
-    block_client: Arc<BlockClient>,
-    middleware_client: Option<Arc<FSMiddlewareClient>>,
-    journal: HashMap<String, Vec<u8>>
-}
-
-impl FileView {
-    async fn read_block(&self, idx: usize, offset: u64) -> Vec<u8> {
-        return if let Some(hash) = self.hashes.get(idx) {
-            if self.journal.contains_key(hash) {
-                let block = self.journal.get(hash).cloned().unwrap();
-                block[offset as usize..].to_vec()
-            } else {
-                let response = self.block_client.get_block(hash.clone()).await.unwrap();
-                response[offset as usize..].to_vec()
-            }
-        } else {
-            vec![]
-        }
-    }
-
-    async fn write_block(&self, uid: u32, data: Vec<u8>) -> String {
-        let data = DataBlock { data };
-
-        let block = DataCapsuleFileSystemBlock {
-            prev_hash: "file_hash1".into(),  // TODO: change this; for now always file_hash1 because we don't care about the structure
-            block: Some(Block::Data(data)),
-            updated_by: Some(self.middleware_client.clone().unwrap().get_id(uid as u64)),
-            signature: vec![],
-        };
-
-        self.middleware_client.clone().unwrap().put_data(block, self.inode_hash.clone()).await.unwrap()
-    }
-
-    pub fn read(&mut self, offset: i64, size: u32) -> Vec<u8> {
-        let mut current = (offset / BLOCK_SIZE) as usize;
-        let mut total_read_bytes = 0;
-        let mut data = vec![];
-
-        // read partial block first
-        debug!("Getting partial block {} for offset {} size {}\n", current, offset, size);
-        let mut blocks = vec![];
-
-        let partial_block = self.read_block(current, (offset % BLOCK_SIZE) as u64);
-        blocks.push(partial_block);
-        total_read_bytes += BLOCK_SIZE - (offset % BLOCK_SIZE);
-        current += 1;
-
-        // the until everything is read
-        while total_read_bytes < size as i64 {
-            debug!("Getting full {} block for offset {} size {}\n", current, offset, size);
-            let block = self.read_block(current, 0);
-            blocks.push(block);
-            total_read_bytes += BLOCK_SIZE;
-            current += 1;
-        }
-
-        let results = block_on(async {
-            join_all(blocks).await
-        });
-
-        for block in results {
-            data.extend_from_slice(&block);
-        }
-
-        return data;
-    }
-
-    pub fn write(&mut self, uid: u32, offset: i64, data: &[u8]) {
-        let mut block_id = (offset / BLOCK_SIZE) as usize;
-
-        let mut to_join = vec![];
-        while self.hashes.len() + to_join.len() <= block_id { // 0 fill if offset is past EOF
-            to_join.push(self.write_block(uid, vec![0u8; BLOCK_SIZE as usize]));
-        }
-        let new_hashes = block_on(join_all(to_join));
-        self.hashes.extend(new_hashes);
-
-        let mut next = 0;
-        let mut to_join = vec![];
-        // read partial block first
-        debug!("Getting partial block {} for offset {}\n", block_id, 0);
-        let mut block = block_on(self.read_block(block_id, 0));
-        block.truncate((offset % BLOCK_SIZE) as usize);
-
-        while next < data.len() {
-            let remaining_bytes = BLOCK_SIZE as usize - block.len();
-            if data.len() >= next + remaining_bytes { // enough bytes to fill all
-                block.extend_from_slice(&data[next..(next + remaining_bytes)]);
-            } else { // need to check if we still have existing data
-                block.extend_from_slice(&data[next..]);
-                if block_id < self.hashes.len() {
-                    debug!("Getting partial block {} for offset {}\n", block_id, block.len());
-                    let prev_block = block_on(self.read_block(block_id, block.len() as u64));
-                    block.extend_from_slice(&prev_block)
-                }
-            }
-
-            if block.len() != BLOCK_SIZE as usize {
-                debug!("Fill block with 0s");
-                block.extend_from_slice(&vec![0u8; BLOCK_SIZE as usize - block.len()]);
-            }
-
-            debug!("Publish block len = {}", block.len());
-            to_join.push(self.write_block(uid, block));
-
-            next += remaining_bytes;
-            block_id += 1;
-            block = vec![];
-        }
-
-        let new_hashes = block_on(join_all(to_join));
-        let block_id = (offset / BLOCK_SIZE) as usize;
-        self.hashes.truncate(block_id);
-        self.hashes.extend(new_hashes);
-    }
-}
 
 pub struct Cache {
     inode_client: INodeClient,
@@ -223,9 +46,12 @@ impl Cache {
             let inode = INode{
                 hash: root.clone(),
                 ino: 1,
-                parent_ino: 1,
+                parent_hash: root.clone(),
                 block: data,
-                timestamp: block.timestamp
+                timestamp: block.timestamp,
+                block_client: self.block_client.clone(),
+                middleware_client: self.middleware_client.clone(),
+                journal: HashMap::new()
             };
 
             self.inodes.push((inode.clone(), Vec::new()));
@@ -265,13 +91,13 @@ impl Cache {
 
     pub fn update(&mut self, uid: u32, ino: u64, block: INodeBlock) {
         let block = DataCapsuleFileSystemBlock {
-            prev_hash: self.get_inode(self.get_inode(ino).0.parent_ino).0.hash,
+            prev_hash:self.get_inode(ino).0.parent_hash,
             block: Some(Block::Inode(block)),
             updated_by: Some(self.middleware_client.clone().unwrap().get_id(uid as u64)),
             signature: vec![],
         };
-        let hash = block_on(self.middleware_client.clone().unwrap().put_inode(block)).unwrap();
-        self.resolve(hash);
+        let response = block_on(self.middleware_client.clone().unwrap().put_inode(block)).unwrap();
+        self.resolve_block(response.hash.unwrap(), response.block.unwrap());
     }
 
     pub fn create(&mut self, uid: u32, parent_ino: u64, name: &OsStr, kind: Kind) {
@@ -292,8 +118,8 @@ impl Cache {
             signature: vec![],
         };
         // block.sign(self.signing_key.as_ref().unwrap());
-        let hash = block_on(self.middleware_client.clone().unwrap().put_inode(block)).unwrap();
-        self.resolve(hash);
+        let response = block_on(self.middleware_client.clone().unwrap().put_inode(block.clone())).unwrap();
+        self.resolve_block(response.hash.unwrap(), response.block.unwrap());
     }
 
     pub fn num_inodes(&self) -> u64 {
@@ -309,62 +135,52 @@ impl Cache {
         return *self.hash_to_ino.get(&hash).unwrap();
     }
 
-    pub fn get_file_view(&self, ino: u64) -> FileView {
-        let block = self.get_inode(ino).0;
-        if block.get_file_type() != RegularFile {
-            panic!("file view cannot be obtained for folders.")
-        }
-
-        return FileView {
-            inode_hash: block.hash,
-            hashes: block.block.hashes.clone(),
-            block_client: self.block_client.clone(),
-            middleware_client: self.middleware_client.clone(),
-            journal: HashMap::new()
-        }
-    }
-
     fn resolve(&mut self, hash: String) {
         if !self.hash_to_ino.contains_key(&hash) {
             let block = self.inode_client.get(&hash).unwrap();
+            self.resolve_block(hash, block)
+        }
+    }
 
-            if !self.hash_to_ino.contains_key(&block.prev_hash) {
-                self.resolve(block.prev_hash.clone());
-            }
+    fn resolve_block(&mut self, hash: String, block: DataCapsuleBlock) {
+        if !self.hash_to_ino.contains_key(&block.prev_hash) {
+            self.resolve(block.prev_hash.clone());
+        }
 
-            if let Block::Inode(data) = block.fs.unwrap().block.unwrap() {
-                let parent_ino = self.hash_to_ino.get(&block.prev_hash).unwrap();
+        if let Block::Inode(data) = block.fs.unwrap().block.unwrap() {
+            let parent_ino = self.hash_to_ino.get(&block.prev_hash).unwrap();
+
+            let mut inode = INode {
+                hash: hash.clone(),
+                ino: self.inodes.len() as u64,
+                parent_hash: block.prev_hash,
+                block: data,
+                timestamp: block.timestamp,
+                block_client: self.block_client.clone(),
+                middleware_client: self.middleware_client.clone(),
+                journal: HashMap::new()
+            };
 
 
-                let mut inode = INode {
-                    hash: hash.clone(),
-                    ino: self.inodes.len() as u64,
-                    parent_ino: *parent_ino,
-                    block: data,
-                    timestamp: block.timestamp
-                };
-
-
-                let index = self.inodes.get(*parent_ino as usize).unwrap().1.iter().position(|x| x.block.filename == inode.block.filename);
-                if let Some(idx) = index {
-                    {
-                        let prev_node = self.inodes.get(*parent_ino as usize).unwrap().1.get(idx).unwrap();
-                        if prev_node.timestamp > inode.timestamp {
-                            return; // we're having an older node, discard
-                        }
-                        inode.ino = prev_node.ino;
+            let index = self.inodes.get(*parent_ino as usize).unwrap().1.iter().position(|x| x.block.filename == inode.block.filename);
+            if let Some(idx) = index {
+                {
+                    let prev_node = self.inodes.get(*parent_ino as usize).unwrap().1.get(idx).unwrap();
+                    if prev_node.timestamp > inode.timestamp {
+                        return; // we're having an older node, discard
                     }
-
-                    self.inodes[inode.ino as usize] = (inode.clone(), Vec::new()); // update local inode to the latest version
-                    self.inodes.get_mut(*parent_ino as usize).unwrap().1.remove(idx);  // delete outdated inode from parent
-                } else {
-                    self.inodes.push((inode.clone(), Vec::new()));
+                    inode.ino = prev_node.ino;
                 }
-                self.inodes.get_mut(*parent_ino as usize).unwrap().1.push(inode.clone());
-                self.hash_to_ino.insert(hash, inode.ino);
+
+                self.inodes[inode.ino as usize] = (inode.clone(), Vec::new()); // update local inode to the latest version
+                self.inodes.get_mut(*parent_ino as usize).unwrap().1.remove(idx);  // delete outdated inode from parent
             } else {
-                panic!();
+                self.inodes.push((inode.clone(), Vec::new()));
             }
+            self.inodes.get_mut(*parent_ino as usize).unwrap().1.push(inode.clone());
+            self.hash_to_ino.insert(hash, inode.ino);
+        } else {
+            panic!();
         }
     }
 }
