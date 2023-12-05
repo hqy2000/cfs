@@ -1,19 +1,22 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::num::NonZeroUsize;
+use std::sync::Mutex;
 use duplicate::duplicate_item;
 use lru::LruCache;
 use rsa::pkcs1v15::SigningKey;
 use rsa::sha2::Sha256;
 
 use tokio::runtime::Runtime;
+use tokio::task::JoinHandle;
 use tonic::codegen::StdError;
+use tonic::Response;
 use tonic::transport::{Channel, ClientTlsConfig};
 use crate::crypto::SignableBlock;
 
 use crate::proto::block::{DataCapsuleBlock, DataCapsuleFileSystemBlock, Id};
 use crate::proto::block::data_capsule_file_system_block::Block;
-use crate::proto::data_capsule::{GetRequest, LeafsRequest};
+use crate::proto::data_capsule::{GetRequest, GetResponse, LeafsRequest};
 use crate::proto::data_capsule::data_capsule_client::DataCapsuleClient;
 use crate::proto::middleware::{PutDataRequest, PutINodeRequest};
 use crate::proto::middleware::middleware_client::MiddlewareClient;
@@ -37,7 +40,7 @@ T C;
 pub struct T {
     client: C<tonic::transport::Channel>,
     runtime: Runtime,
-    cache: LruCache<String, DataCapsuleBlock>,
+    cache: Mutex<LruCache<String, DataCapsuleBlock>>,
 }
 
 #[duplicate_item(
@@ -64,7 +67,7 @@ impl T {
         return T {
             client,
             runtime,
-            cache: LruCache::new(NonZeroUsize::new(cache_size).unwrap()),
+            cache: Mutex::new(LruCache::new(NonZeroUsize::new(cache_size).unwrap())),
         };
     }
 }
@@ -72,17 +75,47 @@ impl T {
 #[duplicate_item(T; [BlockClient]; [INodeClient])]
 impl T {
     pub fn get(&mut self, hash: &str) -> Result<DataCapsuleBlock, Box<dyn Error>> {
-        if let Some(block) = self.cache.get(hash) {
-            return Ok(block.clone());
+        let mut cache = self.cache.lock().unwrap();
+
+        return if let Some(block) = cache.get(hash) {
+            Ok(block.clone())
         } else {
-            return self.runtime.block_on(async {
+            drop(cache);
+            self.runtime.block_on(async {
                 let request = tonic::Request::new(GetRequest {
                     block_hash: hash.to_string()
                 });
                 let response = self.client.get(request).await?;
+                let block = response.get_ref().clone().block.unwrap();
 
-                Ok(response.get_ref().clone().block.unwrap())
+                self.cache.lock().unwrap().put(hash.to_string(), block.clone());
+                Ok(block)
+            })
+        }
+    }
+
+    pub async fn get_async(&self, hash: String) -> Result<DataCapsuleBlock, Box<dyn Error + Send + Sync>> {
+        let mut cache = self.cache.lock().unwrap();
+
+        return if let Some(block) = cache.get(&hash) {
+            Ok(block.clone())
+        } else {
+            drop(cache);
+
+            let mut client = self.client.clone();
+            let request = tonic::Request::new(GetRequest {
+                block_hash: hash.to_string()
             });
+
+            let handle: JoinHandle<Result<DataCapsuleBlock, Box<dyn Error + Send + Sync>>> = self.runtime.spawn(async move {
+                let response = client.get(request).await?;
+                let block = response.get_ref().clone().block.unwrap();
+                Ok(block)
+            });
+
+            let block = handle.await??;
+            self.cache.lock().unwrap().put(hash.to_string(), block.clone());
+            Ok(block)
         }
     }
 
@@ -96,8 +129,8 @@ impl T {
 }
 
 impl BlockClient {
-    pub fn get_block(&mut self, hash: &str) -> Result<Vec<u8>, Box<dyn Error>> {
-        let response = self.get(hash);
+    pub async fn get_block(&self, hash: String) -> Result<Vec<u8>, Box<dyn Error>> {
+        let response = self.get_async(hash).await;
         if let Block::Data(data) = response.unwrap().fs.unwrap().block.unwrap() {
             Ok(data.data)
         } else {

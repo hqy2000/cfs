@@ -6,6 +6,8 @@ use std::time::UNIX_EPOCH;
 
 use fuser::{FileAttr, FileType};
 use fuser::FileType::{Directory, RegularFile};
+use futures::executor::block_on;
+use futures::future::join_all;
 use log::debug;
 
 use crate::client::{BlockClient, FSMiddlewareClient, INodeClient};
@@ -70,14 +72,14 @@ impl INode {
 pub struct FileView {
     inode_hash: String,
     pub hashes: Vec<String>,
-    block_client: Arc<Mutex<BlockClient>>,
+    block_client: Arc<BlockClient>,
     middleware_client: Option<Arc<Mutex<FSMiddlewareClient>>>
 }
 
 impl FileView {
-    fn read_block(&mut self, idx: usize, offset: u64) -> Vec<u8> {
+    async fn read_block(&self, idx: usize, offset: u64) -> Vec<u8> {
         return if let Some(hash) = self.hashes.get(idx) {
-            let response = self.block_client.lock().unwrap().get_block(&hash).unwrap();
+            let response = self.block_client.get_block(hash.clone()).await.unwrap();
             response[offset as usize..].to_vec()
         } else {
             vec![]
@@ -100,24 +102,33 @@ impl FileView {
 
     pub fn read(&mut self, offset: i64, size: u32) -> Vec<u8> {
         let mut current = (offset / BLOCK_SIZE) as usize;
+        let mut total_read_bytes = 0;
         let mut data = vec![];
 
         // read partial block first
         debug!("Getting partial block {} for offset {} size {}\n", current, offset, size);
-        let block = self.read_block(current, (offset % BLOCK_SIZE) as u64);
-        data.extend_from_slice(&block);
+        let mut blocks = vec![];
+
+        let partial_block = self.read_block(current, (offset % BLOCK_SIZE) as u64);
+        blocks.push(partial_block);
+        total_read_bytes += BLOCK_SIZE - (offset % BLOCK_SIZE);
         current += 1;
 
         // the until everything is read
-        while data.len() < size as usize {
+        while total_read_bytes < size as i64 {
             debug!("Getting full {} block for offset {} size {}\n", current, offset, size);
             let block = self.read_block(current, 0);
-            data.extend_from_slice(&block);
+            blocks.push(block);
+            total_read_bytes += BLOCK_SIZE;
             current += 1;
+        }
 
-            if block.len() == 0 {
-                break; // nothing to read anymore, break
-            }
+        let results = block_on(async {
+            join_all(blocks).await
+        });
+
+        for block in results {
+            data.extend_from_slice(&block);
         }
 
         return data;
@@ -135,7 +146,7 @@ impl FileView {
 
         // read partial block first
         debug!("Getting partial block {} for offset {}\n", block_id, offset);
-        let mut block = self.read_block(block_id, 0);
+        let mut block = block_on(self.read_block(block_id, 0));
         block.truncate((offset % BLOCK_SIZE) as usize);
 
         while next < data.len() {
@@ -146,7 +157,7 @@ impl FileView {
                 block.extend_from_slice(&data[next..]);
                 if block_id < self.hashes.len() {
                     debug!("Getting partial block {} for offset {}\n", block_id, offset);
-                    let prev_block = self.read_block(block_id, block.len() as u64);
+                    let prev_block = block_on(self.read_block(block_id, block.len() as u64));
                     block.extend_from_slice(&prev_block)
                 }
             }
@@ -174,7 +185,7 @@ impl FileView {
 
 pub struct Cache {
     inode_client: INodeClient,
-    block_client: Arc<Mutex<BlockClient>>,
+    block_client: Arc<BlockClient>,
     middleware_client: Option<Arc<Mutex<FSMiddlewareClient>>>,
     inodes: Vec<(INode, Vec<INode>)>, // Vec<Node, Children>
     hash_to_ino: HashMap<String, u64> // Hash -> INode.ino
@@ -188,7 +199,7 @@ impl Cache {
         root: String) -> Cache {
         let mut cache = Cache {
             inode_client: client,
-            block_client: Arc::new(Mutex::new(block_client)),
+            block_client: Arc::new(block_client),
             middleware_client: None,
             inodes: Vec::new(),
             hash_to_ino: HashMap::new()
