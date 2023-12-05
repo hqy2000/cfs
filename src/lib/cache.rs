@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use fuser::{FileAttr, FileType};
@@ -73,31 +73,36 @@ pub struct FileView {
     inode_hash: String,
     pub hashes: Vec<String>,
     block_client: Arc<BlockClient>,
-    middleware_client: Option<Arc<Mutex<FSMiddlewareClient>>>
+    middleware_client: Option<Arc<FSMiddlewareClient>>,
+    journal: HashMap<String, Vec<u8>>
 }
 
 impl FileView {
     async fn read_block(&self, idx: usize, offset: u64) -> Vec<u8> {
         return if let Some(hash) = self.hashes.get(idx) {
-            let response = self.block_client.get_block(hash.clone()).await.unwrap();
-            response[offset as usize..].to_vec()
+            if self.journal.contains_key(hash) {
+                let block = self.journal.get(hash).cloned().unwrap();
+                block[offset as usize..].to_vec()
+            } else {
+                let response = self.block_client.get_block(hash.clone()).await.unwrap();
+                response[offset as usize..].to_vec()
+            }
         } else {
             vec![]
         }
     }
 
-    fn write_block(&mut self, uid: u32, data: Vec<u8>) -> String {
+    async fn write_block(&self, uid: u32, data: Vec<u8>) -> String {
         let data = DataBlock { data };
 
         let block = DataCapsuleFileSystemBlock {
             prev_hash: "file_hash1".into(),  // TODO: change this; for now always file_hash1 because we don't care about the structure
             block: Some(Block::Data(data)),
-            updated_by: Some(self.middleware_client.clone().unwrap().lock().unwrap().get_id(uid as u64)),
+            updated_by: Some(self.middleware_client.clone().unwrap().get_id(uid as u64)),
             signature: vec![],
         };
 
-        let response = self.middleware_client.clone().unwrap().lock().unwrap().put_data(block, self.inode_hash.clone()).unwrap();
-        return response;
+        self.middleware_client.clone().unwrap().put_data(block, self.inode_hash.clone()).await.unwrap()
     }
 
     pub fn read(&mut self, offset: i64, size: u32) -> Vec<u8> {
@@ -136,16 +141,18 @@ impl FileView {
 
     pub fn write(&mut self, uid: u32, offset: i64, data: &[u8]) {
         let mut block_id = (offset / BLOCK_SIZE) as usize;
-        while self.hashes.len() <= block_id { // 0 fill if offset is past EOF
-            let hash = self.write_block(uid, vec![0u8; BLOCK_SIZE as usize]);
-            self.hashes.push(hash);
+
+        let mut to_join = vec![];
+        while self.hashes.len() + to_join.len() <= block_id { // 0 fill if offset is past EOF
+            to_join.push(self.write_block(uid, vec![0u8; BLOCK_SIZE as usize]));
         }
+        let new_hashes = block_on(join_all(to_join));
+        self.hashes.extend(new_hashes);
 
         let mut next = 0;
-
-
+        let mut to_join = vec![];
         // read partial block first
-        debug!("Getting partial block {} for offset {}\n", block_id, offset);
+        debug!("Getting partial block {} for offset {}\n", block_id, 0);
         let mut block = block_on(self.read_block(block_id, 0));
         block.truncate((offset % BLOCK_SIZE) as usize);
 
@@ -156,7 +163,7 @@ impl FileView {
             } else { // need to check if we still have existing data
                 block.extend_from_slice(&data[next..]);
                 if block_id < self.hashes.len() {
-                    debug!("Getting partial block {} for offset {}\n", block_id, offset);
+                    debug!("Getting partial block {} for offset {}\n", block_id, block.len());
                     let prev_block = block_on(self.read_block(block_id, block.len() as u64));
                     block.extend_from_slice(&prev_block)
                 }
@@ -168,25 +175,24 @@ impl FileView {
             }
 
             debug!("Publish block len = {}", block.len());
-            let hash = self.write_block(uid, block);
-
-            if block_id < self.hashes.len() { // within bounds, replace existing
-                self.hashes[block_id] = hash;
-            } else {
-                self.hashes.push(hash);
-            }
+            to_join.push(self.write_block(uid, block));
 
             next += remaining_bytes;
             block_id += 1;
             block = vec![];
         }
+
+        let new_hashes = block_on(join_all(to_join));
+        let block_id = (offset / BLOCK_SIZE) as usize;
+        self.hashes.truncate(block_id);
+        self.hashes.extend(new_hashes);
     }
 }
 
 pub struct Cache {
     inode_client: INodeClient,
     block_client: Arc<BlockClient>,
-    middleware_client: Option<Arc<Mutex<FSMiddlewareClient>>>,
+    middleware_client: Option<Arc<FSMiddlewareClient>>,
     inodes: Vec<(INode, Vec<INode>)>, // Vec<Node, Children>
     hash_to_ino: HashMap<String, u64> // Hash -> INode.ino
 }
@@ -205,7 +211,7 @@ impl Cache {
             hash_to_ino: HashMap::new()
         };
         if let Some(middleware) = middleware {
-            cache.middleware_client = Some(Arc::new(Mutex::new(middleware)));
+            cache.middleware_client = Some(Arc::new(middleware));
         }
         cache.build(root);
         return cache;
@@ -261,10 +267,10 @@ impl Cache {
         let block = DataCapsuleFileSystemBlock {
             prev_hash: self.get_inode(self.get_inode(ino).0.parent_ino).0.hash,
             block: Some(Block::Inode(block)),
-            updated_by: Some(self.middleware_client.clone().unwrap().lock().unwrap().get_id(uid as u64)),
+            updated_by: Some(self.middleware_client.clone().unwrap().get_id(uid as u64)),
             signature: vec![],
         };
-        let hash = self.middleware_client.clone().unwrap().lock().unwrap().put_inode(block).unwrap();
+        let hash = block_on(self.middleware_client.clone().unwrap().put_inode(block)).unwrap();
         self.resolve(hash);
     }
 
@@ -282,11 +288,11 @@ impl Cache {
         let block = DataCapsuleFileSystemBlock {
             prev_hash: self.get_inode(parent_ino).0.hash,
             block: Some(Block::Inode(inode_block)),
-            updated_by: Some(self.middleware_client.clone().unwrap().lock().unwrap().get_id(uid as u64)),
+            updated_by: Some(self.middleware_client.clone().unwrap().get_id(uid as u64)),
             signature: vec![],
         };
         // block.sign(self.signing_key.as_ref().unwrap());
-        let hash = self.middleware_client.clone().unwrap().lock().unwrap().put_inode(block).unwrap();
+        let hash = block_on(self.middleware_client.clone().unwrap().put_inode(block)).unwrap();
         self.resolve(hash);
     }
 
@@ -309,11 +315,12 @@ impl Cache {
             panic!("file view cannot be obtained for folders.")
         }
 
-        return FileView{
+        return FileView {
             inode_hash: block.hash,
             hashes: block.block.hashes.clone(),
             block_client: self.block_client.clone(),
-            middleware_client: self.middleware_client.clone()
+            middleware_client: self.middleware_client.clone(),
+            journal: HashMap::new()
         }
     }
 

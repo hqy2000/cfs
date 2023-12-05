@@ -2,21 +2,19 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::num::NonZeroUsize;
 use std::sync::Mutex;
+
 use duplicate::duplicate_item;
 use lru::LruCache;
 use rsa::pkcs1v15::SigningKey;
 use rsa::sha2::Sha256;
-
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
-use tonic::codegen::StdError;
-use tonic::Response;
 use tonic::transport::{Channel, ClientTlsConfig};
-use crate::crypto::SignableBlock;
 
+use crate::crypto::SignableBlock;
 use crate::proto::block::{DataCapsuleBlock, DataCapsuleFileSystemBlock, Id};
 use crate::proto::block::data_capsule_file_system_block::Block;
-use crate::proto::data_capsule::{GetRequest, GetResponse, LeafsRequest};
+use crate::proto::data_capsule::{GetRequest, LeafsRequest};
 use crate::proto::data_capsule::data_capsule_client::DataCapsuleClient;
 use crate::proto::middleware::{PutDataRequest, PutINodeRequest};
 use crate::proto::middleware::middleware_client::MiddlewareClient;
@@ -170,39 +168,44 @@ impl FSMiddlewareClient {
         };
     }
 
-    pub fn put_inode(&mut self, mut block: DataCapsuleFileSystemBlock) -> Result<String, Box<dyn Error>> {
+    pub async fn put_inode(&self, mut block: DataCapsuleFileSystemBlock) -> Result<String, Box<dyn Error + Send + Sync>> {
         block.sign(&self.signing_key.clone());
-        return self.runtime.block_on(async {
-            if let Block::Inode(ref _data) = block.block.as_ref().unwrap() {
-                let request = tonic::Request::new(PutINodeRequest {
-                    block: Some(block)
-                });
-                let response = self.client.put_i_node(request).await?;
+        if let Block::Inode(ref _data) = block.block.as_ref().unwrap() {
+            let mut client = self.client.clone();
+            let request = tonic::Request::new(PutINodeRequest {
+                block: Some(block)
+            });
+            let handle: JoinHandle<Result<String, Box<dyn Error + Send + Sync>>> = self.runtime.spawn(async move {
+                let response = client.put_i_node(request).await?;
                 Ok(response.get_ref().clone().hash.unwrap())
-            } else {
-                panic!("received data in put_inode")
-            }
-        });
+            });
+
+            Ok(handle.await??)
+        } else {
+            panic!("received data in put_inode")
+        }
     }
 
-    pub fn put_data(&mut self, mut block: DataCapsuleFileSystemBlock, ref_inode_hash: String) -> Result<String, Box<dyn Error>> {
+    pub async fn put_data(&self, mut block: DataCapsuleFileSystemBlock, ref_inode_hash: String) -> Result<String, Box<dyn Error + Send + Sync>> {
         block.sign(&self.signing_key.clone());
-        return self.runtime.block_on(async {
-            if let Block::Data(ref _data) = block.block.as_ref().unwrap() {
-                let request = tonic::Request::new(PutDataRequest {
-                    block: Some(block),
-                    inode_hash: ref_inode_hash,
-                });
-                let response = self.client.put_data(request).await?;
+        if let Block::Data(ref _data) = block.block.as_ref().unwrap() {
+            let mut client = self.client.clone();
+            let request = tonic::Request::new(PutDataRequest {
+                block: Some(block),
+                inode_hash: ref_inode_hash,
+            });
+            let handle: JoinHandle<Result<String, Box<dyn Error + Send + Sync>>> = self.runtime.spawn(async move {
+                let response = client.put_data(request).await?;
                 Ok(response.get_ref().clone().hash.unwrap())
-            } else {
-                panic!("received inode in put_data")
-            }
-        });
+            });
+            Ok(handle.await??)
+        } else {
+            panic!("received inode in put_data")
+        }
     }
 
 
-    pub fn get_id(&mut self, uid: u64) -> Id {
+    pub fn get_id(&self, uid: u64) -> Id {
         let mut id = Id {
             pub_key: Vec::from(self.public_key_pkcs8.clone()),
             uid,

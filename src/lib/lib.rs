@@ -3,5 +3,4 @@ pub mod fs;
 pub mod server;
 pub mod proto;
 pub mod cache;
-pub mod journal;
 pub mod crypto;
