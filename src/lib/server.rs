@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
-use data_encoding::HEXLOWER;
-use prost::Message;
-use ring::digest::{Context, SHA256};
 use rsa::pkcs1v15::VerifyingKey;
 use rsa::sha2::Sha256;
 use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
+use crate::crypto::SignableBlock;
 
 use crate::proto::data_capsule::{DataCapsuleServerData, GetRequest, GetResponse, LeafsRequest, LeafsResponse, PutRequest, PutResponse};
 use crate::proto::data_capsule::data_capsule_server::DataCapsule;
@@ -14,7 +12,7 @@ use crate::proto::data_capsule::data_capsule_server::DataCapsule;
 #[derive(Debug)]
 pub struct MyDataCapsule {
     pub data: Arc<Mutex<DataCapsuleServerData>>,
-    pub verifying_key: Arc<Mutex<VerifyingKey<Sha256>>>,
+    pub verifying_key: VerifyingKey<Sha256>,
 }
 
 #[tonic::async_trait]
@@ -32,12 +30,7 @@ impl DataCapsule for MyDataCapsule {
 
         let request = request.into_inner();
         let block = request.block.unwrap();
-
-        let mut context = Context::new(&SHA256);
-        let mut buf = vec![];
-        block.encode(&mut buf).unwrap();
-        context.update(&buf);
-        let hash = HEXLOWER.encode(context.finish().as_ref());
+        let hash = block.hash();
 
         let mut mutex = self.data.lock().await;
 
@@ -58,7 +51,7 @@ impl DataCapsule for MyDataCapsule {
 
             Ok(Response::new(PutResponse {
                 success: true,
-                hash: hash
+                hash
             }))
         }
     }

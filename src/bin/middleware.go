@@ -19,7 +19,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	creds, err := credentials.NewServerTLSFromFile("key/loopback.hqy.moe_fullchain.pem", "key/loopback.hqy.moe_privkey.pem")
+	creds, err := credentials.NewServerTLSFromFile("config/loopback.hqy.moe_fullchain.pem", "config/loopback.hqy.moe_privkey.pem")
 	if err != nil {
 		log.Fatalf("failed to load tls cert: %v", err)
 	}
@@ -29,7 +29,7 @@ func main() {
 	go_proto.RegisterMiddlewareServer(s, &lib.MiddlewareServer{
 		InodeClient: connect("loopback.hqy.moe:50052"),
 		DataClient:  connect("loopback.hqy.moe:50051"),
-		PrivateKey:  loadPrivateKey("key/server_private.pem"),
+		PrivateKey:  loadPrivateKey("config/server_private.pem"),
 	})
 	log.Println(s.GetServiceInfo())
 	s.GetServiceInfo()
@@ -53,7 +53,7 @@ func loadPrivateKey(file string) *rsa.PrivateKey {
 }
 
 func connect(addr string) go_proto.DataCapsuleClient {
-	creds, err := credentials.NewClientTLSFromFile("key/loopback.hqy.moe_fullchain.pem", "")
+	creds, err := credentials.NewClientTLSFromFile("config/loopback.hqy.moe_fullchain.pem", "")
 	if err != nil {
 		log.Fatalf("failed to load tls cert: %v", err)
 	}

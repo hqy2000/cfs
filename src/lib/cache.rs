@@ -3,7 +3,6 @@ use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
 use std::sync::Arc;
 
-use fuser::FileType::RegularFile;
 use futures::executor::block_on;
 
 use crate::client::{BlockClient, FSMiddlewareClient, INodeClient};
@@ -17,7 +16,8 @@ pub struct Cache {
     block_client: Arc<BlockClient>,
     middleware_client: Option<Arc<FSMiddlewareClient>>,
     inodes: Vec<(INode, Vec<INode>)>, // Vec<Node, Children>
-    hash_to_ino: HashMap<String, u64> // Hash -> INode.ino
+    hash_to_ino: HashMap<String, u64>, // Hash -> INode.ino
+    data_root: String
 }
 
 impl Cache {
@@ -25,18 +25,20 @@ impl Cache {
         client: INodeClient,
         block_client: BlockClient,
         middleware: Option<FSMiddlewareClient>,
-        root: String) -> Cache {
+        inode_root: String,
+        data_root: String) -> Cache {
         let mut cache = Cache {
             inode_client: client,
             block_client: Arc::new(block_client),
             middleware_client: None,
             inodes: Vec::new(),
-            hash_to_ino: HashMap::new()
+            hash_to_ino: HashMap::new(),
+            data_root
         };
         if let Some(middleware) = middleware {
             cache.middleware_client = Some(Arc::new(middleware));
         }
-        cache.build(root);
+        cache.build(inode_root);
         return cache;
     }
 
@@ -51,7 +53,8 @@ impl Cache {
                 timestamp: block.timestamp,
                 block_client: self.block_client.clone(),
                 middleware_client: self.middleware_client.clone(),
-                journal: HashMap::new()
+                journal: HashMap::new(),
+                prev_data_hash: self.data_root.clone()
             };
 
             self.inodes.push((inode.clone(), Vec::new()));
@@ -158,7 +161,8 @@ impl Cache {
                 timestamp: block.timestamp,
                 block_client: self.block_client.clone(),
                 middleware_client: self.middleware_client.clone(),
-                journal: HashMap::new()
+                journal: HashMap::new(),
+                prev_data_hash: self.data_root.clone()
             };
 
 

@@ -1,0 +1,26 @@
+{
+  "servers": [
+    {
+      "isCryptoEnabled": true,
+      "address": "127.0.0.1",
+      "port": 50051,
+      "dataFile": "config/data_server.bin",
+      "tls": {
+        "privateKey": "config/loopback.hqy.moe_privkey.pem",
+        "certificate": "config/loopback.hqy.moe_fullchain.pem"
+      },
+      "verifyingKey": "config/server_public.pem"
+    },
+    {
+      "isCryptoEnabled": true,
+      "address": "127.0.0.1",
+      "port": 50052,
+      "dataFile": "config/inode_server.bin",
+      "tls": {
+        "privateKey": "config/loopback.hqy.moe_privkey.pem",
+        "certificate": "config/loopback.hqy.moe_fullchain.pem"
+      },
+      "verifyingKey": "config/server_public.pem"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::num::NonZeroUsize;
+use std::str::FromStr;
 use std::sync::Mutex;
 
 use duplicate::duplicate_item;
@@ -9,7 +10,7 @@ use rsa::pkcs1v15::SigningKey;
 use rsa::sha2::Sha256;
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
-use tonic::transport::{Channel, ClientTlsConfig};
+use tonic::transport::{Channel, ClientTlsConfig, Uri};
 
 use crate::crypto::SignableBlock;
 use crate::proto::block::{DataCapsuleBlock, DataCapsuleFileSystemBlock, Id};
@@ -47,14 +48,14 @@ T C;
 [INodeClient] [DataCapsuleClient];
 )]
 impl T {
-    pub fn connect(addr: &'static str, tls_config: ClientTlsConfig, cache_size: usize) -> T {
+    pub fn connect(addr: &str, tls_config: ClientTlsConfig, cache_size: usize) -> T {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
 
         let channel = runtime.block_on(async {
-            return Channel::from_static(addr)
+            return Channel::builder(Uri::from_str(addr).unwrap())
                 .tls_config(tls_config).unwrap()
                 .connect()
                 .await;
@@ -145,14 +146,14 @@ pub struct FSMiddlewareClient {
 }
 
 impl FSMiddlewareClient {
-    pub fn connect(addr: &'static str, tls_config: ClientTlsConfig, public_key_pkcs8: String, signing_key: SigningKey<Sha256>) -> FSMiddlewareClient {
+    pub fn connect(addr: &str, tls_config: ClientTlsConfig, public_key_pkcs8: String, signing_key: SigningKey<Sha256>) -> FSMiddlewareClient {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
 
         let channel = runtime.block_on(async {
-            return Channel::from_static(addr)
+            return Channel::builder(Uri::from_str(addr).unwrap())
                 .tls_config(tls_config).unwrap()
                 .connect()
                 .await;

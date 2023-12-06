@@ -23,7 +23,8 @@ pub struct INode {
     pub timestamp: i64,
     pub block_client: Arc<BlockClient>,
     pub middleware_client: Option<Arc<FSMiddlewareClient>>,
-    pub journal: HashMap<String, Vec<u8>>
+    pub journal: HashMap<String, Vec<u8>>,
+    pub prev_data_hash: String
 }
 
 impl INode {
@@ -89,7 +90,7 @@ impl INode {
         let data = DataBlock { data };
 
         let block = DataCapsuleFileSystemBlock {
-            prev_hash: "file_hash1".into(),  // TODO: change this; for now always file_hash1 because we don't care about the structure
+            prev_hash: self.prev_data_hash.to_string(),
             block: Some(Block::Data(data)),
             updated_by: Some(self.middleware_client.clone().unwrap().get_id(uid as u64)),
             signature: vec![],

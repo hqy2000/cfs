@@ -74,7 +74,7 @@ func ValidateData(data proto.Message, publicKey *rsa.PublicKey, signature []byte
 func LoadPublicKey(key []byte) *rsa.PublicKey {
 	block, _ := pem.Decode(key)
 	if block == nil {
-		panic("failed to parse PEM block containing the key")
+		panic("failed to parse PEM block containing the config")
 	}
 
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)

@@ -12,13 +12,13 @@ use crate::cache::Cache;
 use crate::proto::block::i_node_block::Kind;
 
 const TTL: Duration = Duration::from_secs(1); // 1 second
-pub const BLOCK_SIZE: i64 = 512;
+pub const BLOCK_SIZE: i64 = 4096;
 
-pub struct DCFS2 {
+pub struct CFS {
     pub cache: Cache,
 }
 
-impl DCFS2 {
+impl CFS {
     fn _delete(&mut self, req: &Request<'_>, parent: u64, name: &OsStr, file_type: FileType, reply: ReplyEmpty) {
         let node = self.cache.find_child_node(parent, name);
         if let Some(node) = node {
@@ -35,7 +35,7 @@ impl DCFS2 {
 }
 
 
-impl Filesystem for DCFS2 {
+impl Filesystem for CFS {
     fn lookup(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
         if let Some(inode) = self.cache.find_child_node(parent, name) {
             reply.entry(&TTL, &inode.to_file_attr(), 0);
@@ -91,7 +91,7 @@ impl Filesystem for DCFS2 {
         inode.write(req.uid(), offset, data);
         inode.block.size = max((offset + data.len() as i64) as u64, inode.block.size);
 
-        let mut block = inode.block.clone();
+        let block = inode.block.clone();
         self.cache.update(req.uid(), ino, block);
         reply.written(data.len() as u32);
     }
