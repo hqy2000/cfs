@@ -43,7 +43,7 @@ func (s *MiddlewareServer) PutINode(ctx context.Context, in *pb.PutINodeRequest)
 	}
 
 	// 3. ship the node to the server
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	block := s.finalizeBlock(in.Block, s.InodeSigningKey)
@@ -78,7 +78,7 @@ func (s *MiddlewareServer) PutData(ctx context.Context, in *pb.PutDataRequest) (
 	}
 
 	// 3. ship the node to the server
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	block := s.finalizeBlock(in.Block, s.DataSigningKey)

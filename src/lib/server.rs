@@ -19,7 +19,7 @@ pub struct MyDataCapsule {
 #[tonic::async_trait]
 impl DataCapsule for MyDataCapsule {
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
-        println!("Got a get request: {:?}", request);
+        println!("Got a get request: {:?}", request.into_inner().block_hash);
         let reply = GetResponse {
             block: self.data.lock().await.content.get(&request.into_inner().block_hash).cloned()
         };
@@ -27,7 +27,7 @@ impl DataCapsule for MyDataCapsule {
     }
 
     async fn put(&self, request: Request<PutRequest>) -> Result<Response<PutResponse>, Status> {
-        println!("Got a put request: {:?}", request);
+        println!("Got a get request, prev_hash: {:?}", request.into_inner().block.unwrap().prev_hash);
 
         let request = request.into_inner();
         let mut block = request.block.unwrap();
