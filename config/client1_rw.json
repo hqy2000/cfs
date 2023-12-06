@@ -1,5 +1,5 @@
 {
-  "blockSize": 512,
+  "blockSize": 4096,
   "isCryptoEnabled": true,
   "dataServer": {
     "url": "https://loopback.hqy.moe:50051",

@@ -12,7 +12,6 @@ use crate::cache::Cache;
 use crate::proto::block::i_node_block::Kind;
 
 const TTL: Duration = Duration::from_secs(1); // 1 second
-pub const BLOCK_SIZE: i64 = 4096;
 
 pub struct CFS {
     pub cache: Cache,

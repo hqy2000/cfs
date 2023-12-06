@@ -17,7 +17,8 @@ pub struct Cache {
     middleware_client: Option<Arc<FSMiddlewareClient>>,
     inodes: Vec<(INode, Vec<INode>)>, // Vec<Node, Children>
     hash_to_ino: HashMap<String, u64>, // Hash -> INode.ino
-    data_root: String
+    data_root: String,
+    block_size: usize
 }
 
 impl Cache {
@@ -26,14 +27,16 @@ impl Cache {
         block_client: BlockClient,
         middleware: Option<FSMiddlewareClient>,
         inode_root: String,
-        data_root: String) -> Cache {
+        data_root: String,
+        block_size: u16) -> Cache {
         let mut cache = Cache {
             inode_client: client,
             block_client: Arc::new(block_client),
             middleware_client: None,
             inodes: Vec::new(),
             hash_to_ino: HashMap::new(),
-            data_root
+            data_root,
+            block_size: block_size as usize
         };
         if let Some(middleware) = middleware {
             cache.middleware_client = Some(Arc::new(middleware));
@@ -54,7 +57,8 @@ impl Cache {
                 block_client: self.block_client.clone(),
                 middleware_client: self.middleware_client.clone(),
                 journal: HashMap::new(),
-                prev_data_hash: self.data_root.clone()
+                prev_data_hash: self.data_root.clone(),
+                block_size: self.block_size
             };
 
             self.inodes.push((inode.clone(), Vec::new()));
@@ -162,7 +166,8 @@ impl Cache {
                 block_client: self.block_client.clone(),
                 middleware_client: self.middleware_client.clone(),
                 journal: HashMap::new(),
-                prev_data_hash: self.data_root.clone()
+                prev_data_hash: self.data_root.clone(),
+                block_size: self.block_size
             };
 
 

@@ -54,7 +54,7 @@ fn main() {
         cache: Cache::new(
             INodeClient::connect(config.inode_server.url.as_ref(), tls_config.clone(), config.inode_server.cache_size),
             BlockClient::connect(config.data_server.url.as_ref(), tls_config.clone(), config.data_server.cache_size),
-            middleware_client, config.inode_server.root, config.data_server.root
+            middleware_client, config.inode_server.root, config.data_server.root, config.block_size
         ),
     }, mountpoint, &options).unwrap();
 }
