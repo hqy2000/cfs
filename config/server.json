@@ -1,7 +1,7 @@
 {
   "servers": [
     {
-      "isCryptoEnabled": true,
+      "isCryptoEnabled": false,
       "address": "127.0.0.1",
       "port": 50051,
       "dataFile": "config/data_server.bin",

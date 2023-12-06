@@ -1,15 +1,17 @@
 {
   "blockSize": 4096,
-  "isCryptoEnabled": true,
+  "isCryptoEnabled": false,
   "dataServer": {
     "url": "https://loopback.hqy.moe:50051",
     "cacheSize": 100,
-    "root": "5cad5444444cbffc21997326db2dd48881863864396d39615c76b6f4375edcd5"
+    "root": "5cad5444444cbffc21997326db2dd48881863864396d39615c76b6f4375edcd5",
+    "verifyingKey": "config/server_public.pem"
   },
   "inodeServer": {
     "url": "https://loopback.hqy.moe:50052",
     "cacheSize": 100,
-    "root": "6a8820ea7c6f6b15164e8e9154f1d492cb7163ad84481030dce0fd9eea55edd8"
+    "root": "6a8820ea7c6f6b15164e8e9154f1d492cb7163ad84481030dce0fd9eea55edd8",
+    "verifyingKey": "config/server_public.pem"
   },
   "middleware": {
     "url": "https://loopback.hqy.moe:50060",

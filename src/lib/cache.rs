@@ -46,7 +46,7 @@ impl Cache {
     }
 
     fn build(&mut self, root: String) {
-        let block = self.inode_client.get(&root).unwrap();
+        let block = block_on(self.inode_client.get(root.clone())).unwrap();
         if let Block::Inode(data) = block.fs.unwrap().block.unwrap() {
             let inode = INode{
                 hash: root.clone(),
@@ -144,7 +144,7 @@ impl Cache {
 
     fn resolve(&mut self, hash: String) {
         if !self.hash_to_ino.contains_key(&hash) {
-            let block = self.inode_client.get(&hash).unwrap();
+            let block = block_on(self.inode_client.get(hash.clone())).unwrap();
             self.resolve_block(hash, block)
         }
     }

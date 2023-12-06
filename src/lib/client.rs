@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 use duplicate::duplicate_item;
 use lru::LruCache;
-use rsa::pkcs1v15::SigningKey;
+use rsa::pkcs1v15::{SigningKey, VerifyingKey};
 use rsa::sha2::Sha256;
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
@@ -40,6 +40,8 @@ pub struct T {
     client: C<tonic::transport::Channel>,
     runtime: Runtime,
     cache: Mutex<LruCache<String, DataCapsuleBlock>>,
+    verifying_key: VerifyingKey<Sha256>,
+    enable_crypto: bool,
 }
 
 #[duplicate_item(
@@ -48,7 +50,7 @@ T C;
 [INodeClient] [DataCapsuleClient];
 )]
 impl T {
-    pub fn connect(addr: &str, tls_config: ClientTlsConfig, cache_size: usize) -> T {
+    pub fn connect(addr: &str, tls_config: ClientTlsConfig, cache_size: usize, verifying_key: VerifyingKey<Sha256>, enable_crypto: bool) -> T {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -67,33 +69,15 @@ impl T {
             client,
             runtime,
             cache: Mutex::new(LruCache::new(NonZeroUsize::new(cache_size).unwrap())),
+            verifying_key,
+            enable_crypto
         };
     }
 }
 
 #[duplicate_item(T; [BlockClient]; [INodeClient])]
 impl T {
-    pub fn get(&mut self, hash: &str) -> Result<DataCapsuleBlock, Box<dyn Error>> {
-        let mut cache = self.cache.lock().unwrap();
-
-        return if let Some(block) = cache.get(hash) {
-            Ok(block.clone())
-        } else {
-            drop(cache);
-            self.runtime.block_on(async {
-                let request = tonic::Request::new(GetRequest {
-                    block_hash: hash.to_string()
-                });
-                let response = self.client.get(request).await?;
-                let block = response.get_ref().clone().block.unwrap();
-
-                self.cache.lock().unwrap().put(hash.to_string(), block.clone());
-                Ok(block)
-            })
-        }
-    }
-
-    pub async fn get_async(&self, hash: String) -> Result<DataCapsuleBlock, Box<dyn Error + Send + Sync>> {
+    pub async fn get(&self, hash: String) -> Result<DataCapsuleBlock, Box<dyn Error + Send + Sync>> {
         let mut cache = self.cache.lock().unwrap();
 
         return if let Some(block) = cache.get(&hash) {
@@ -112,9 +96,14 @@ impl T {
                 Ok(block)
             });
 
-            let block = handle.await??;
-            self.cache.lock().unwrap().put(hash.to_string(), block.clone());
-            Ok(block)
+            let mut block = handle.await??;
+            if !self.enable_crypto || block.validate(&self.verifying_key) {
+                self.cache.lock().unwrap().put(hash.to_string(), block.clone());
+                Ok(block)
+            } else {
+                Err(Box::new(ClientError{}))
+            }
+
         }
     }
 
@@ -129,7 +118,7 @@ impl T {
 
 impl BlockClient {
     pub async fn get_block(&self, hash: String) -> Result<Vec<u8>, Box<dyn Error>> {
-        let response = self.get_async(hash).await;
+        let response = self.get(hash).await;
         if let Block::Data(data) = response.unwrap().fs.unwrap().block.unwrap() {
             Ok(data.data)
         } else {
@@ -143,10 +132,11 @@ pub struct FSMiddlewareClient {
     runtime: Runtime,
     public_key_pkcs8: String,
     signing_key: SigningKey<Sha256>,
+    enable_crypto: bool,
 }
 
 impl FSMiddlewareClient {
-    pub fn connect(addr: &str, tls_config: ClientTlsConfig, public_key_pkcs8: String, signing_key: SigningKey<Sha256>) -> FSMiddlewareClient {
+    pub fn connect(addr: &str, tls_config: ClientTlsConfig, public_key_pkcs8: String, signing_key: SigningKey<Sha256>, enable_crypto: bool) -> FSMiddlewareClient {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -166,11 +156,15 @@ impl FSMiddlewareClient {
             runtime,
             public_key_pkcs8,
             signing_key,
+            enable_crypto
         };
     }
 
     pub async fn put_inode(&self, mut block: DataCapsuleFileSystemBlock) -> Result<PutINodeResponse, Box<dyn Error + Send + Sync>> {
-        block.sign(&self.signing_key.clone());
+        if self.enable_crypto {
+            block.sign(&self.signing_key.clone());
+        }
+
         if let Block::Inode(ref _data) = block.block.as_ref().unwrap() {
             let mut client = self.client.clone();
             let request = tonic::Request::new(PutINodeRequest {
@@ -188,7 +182,10 @@ impl FSMiddlewareClient {
     }
 
     pub async fn put_data(&self, mut block: DataCapsuleFileSystemBlock, ref_inode_hash: String) -> Result<PutDataResponse, Box<dyn Error + Send + Sync>> {
-        block.sign(&self.signing_key.clone());
+        if self.enable_crypto {
+            block.sign(&self.signing_key.clone());
+        }
+
         if let Block::Data(ref _data) = block.block.as_ref().unwrap() {
             let mut client = self.client.clone();
             let request = tonic::Request::new(PutDataRequest {
@@ -212,7 +209,11 @@ impl FSMiddlewareClient {
             uid,
             signature: vec![],
         };
-        id.sign(&self.signing_key);
+
+        if self.enable_crypto {
+            id.sign(&self.signing_key);
+        }
+
         return id;
     }
 }

@@ -1,12 +1,12 @@
 package lib
 
 import (
+	"cfs/middleware/src/lib/go_proto"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
-	"dcfs2/middleware/src/lib/go_proto"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"

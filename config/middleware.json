@@ -1,0 +1,23 @@
+{
+  "isCryptoEnabled": false,
+  "dataServer": {
+    "url": "loopback.hqy.moe:50051",
+    "signingKey": "config/server_private.pem",
+    "tls": {
+      "ca": "config/loopback.hqy.moe_chain.pem"
+    }
+  },
+  "inodeServer": {
+    "url": "loopback.hqy.moe:50052",
+    "signingKey": "config/server_private.pem",
+    "tls": {
+      "ca": "config/loopback.hqy.moe_chain.pem"
+    }
+  },
+  "address": "127.0.0.1",
+  "port": 50060,
+  "tls": {
+    "privateKey": "config/loopback.hqy.moe_privkey.pem",
+    "certificate": "config/loopback.hqy.moe_fullchain.pem"
+  }
+}

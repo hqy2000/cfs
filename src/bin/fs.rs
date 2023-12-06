@@ -3,7 +3,7 @@ use clap::{Arg, Command};
 use config::{Config, ConfigError, File};
 use fuser::MountOption;
 use rsa::pkcs1v15;
-use rsa::pkcs8::DecodePrivateKey;
+use rsa::pkcs8::{DecodePrivateKey, DecodePublicKey};
 use rsa::sha2::Sha256;
 use serde::{Deserialize, Serialize};
 use tonic::transport::{Certificate, ClientTlsConfig};
@@ -43,7 +43,7 @@ fn main() {
     if let Some(middleware_config) = config.middleware {
         middleware_client = Some(FSMiddlewareClient::connect(
             &middleware_config.url, tls_config.clone(), fs::read_to_string(middleware_config.verifying_key).unwrap(),
-            pkcs1v15::SigningKey::<Sha256>::read_pkcs8_pem_file(middleware_config.signing_key).unwrap()));
+            pkcs1v15::SigningKey::<Sha256>::read_pkcs8_pem_file(middleware_config.signing_key).unwrap(), config.is_crypto_enabled));
         options.push(MountOption::RW);
     } else {
         middleware_client = None;
@@ -52,8 +52,10 @@ fn main() {
 
     fuser::mount2(CFS {
         cache: Cache::new(
-            INodeClient::connect(config.inode_server.url.as_ref(), tls_config.clone(), config.inode_server.cache_size),
-            BlockClient::connect(config.data_server.url.as_ref(), tls_config.clone(), config.data_server.cache_size),
+            INodeClient::connect(config.inode_server.url.as_ref(), tls_config.clone(), config.inode_server.cache_size,
+                                 pkcs1v15::VerifyingKey::<Sha256>::read_public_key_pem_file(config.inode_server.verifying_key).unwrap(), config.is_crypto_enabled),
+            BlockClient::connect(config.data_server.url.as_ref(), tls_config.clone(), config.data_server.cache_size,
+                                 pkcs1v15::VerifyingKey::<Sha256>::read_public_key_pem_file(config.data_server.verifying_key).unwrap(), config.is_crypto_enabled),
             middleware_client, config.inode_server.root, config.data_server.root, config.block_size
         ),
     }, mountpoint, &options).unwrap();
@@ -82,7 +84,8 @@ struct Middleware {
 struct Server {
     pub url: String,
     pub cache_size: usize,
-    pub root: String
+    pub root: String,
+    pub verifying_key: String
 }
 
 #[derive(Serialize, Deserialize)]

@@ -2,9 +2,9 @@ package lib
 
 import (
 	"bytes"
+	pb "cfs/middleware/src/lib/go_proto"
 	"context"
 	"crypto/rsa"
-	pb "dcfs2/middleware/src/lib/go_proto"
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"time"
@@ -13,16 +13,18 @@ import (
 type MiddlewareServer struct {
 	pb.UnimplementedMiddlewareServer
 
-	InodeClient pb.DataCapsuleClient
-	DataClient  pb.DataCapsuleClient
-	PrivateKey  *rsa.PrivateKey
+	InodeClient     pb.DataCapsuleClient
+	DataClient      pb.DataCapsuleClient
+	InodeSigningKey *rsa.PrivateKey
+	DataSigningKey  *rsa.PrivateKey
+	EnableCrypto    bool
 }
 
 func (s *MiddlewareServer) PutINode(ctx context.Context, in *pb.PutINodeRequest) (*pb.PutINodeResponse, error) {
 	fmt.Println("Received inode")
 	fmt.Println(proto.MarshalTextString(in.Block))
 	// 1. validate the client's signature first
-	if !ValidateDataCapsuleFileSystemBlock(in.Block) {
+	if s.EnableCrypto && !ValidateDataCapsuleFileSystemBlock(in.Block) {
 		return &pb.PutINodeResponse{
 			Success: false,
 			Hash:    nil,
@@ -33,25 +35,22 @@ func (s *MiddlewareServer) PutINode(ctx context.Context, in *pb.PutINodeRequest)
 	// 2. ensure that the client is in ACL of the node attached to
 	// todo: edge case: previous node is marked as deleted
 	// todo: put a deleted = true node, need to verify leafs
-	if !s.validateFsBlock(in.Block, in.Block.PrevHash) {
+	if s.EnableCrypto && !s.validateFsBlock(in.Block, in.Block.PrevHash) {
 		return &pb.PutINodeResponse{
 			Success: false,
 			Hash:    nil,
 		}, nil
 	}
-	fmt.Println("ACL check passed")
 
 	// 3. ship the node to the server
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	block := s.finalizeBlock(in.Block)
+	block := s.finalizeBlock(in.Block, s.InodeSigningKey)
 	result, err := s.InodeClient.Put(ctx, &pb.PutRequest{Block: block})
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Request sent")
-	fmt.Println(fmt.Println(proto.MarshalTextString(result)))
 
 	return &pb.PutINodeResponse{
 		Success: result.Success,
@@ -62,7 +61,7 @@ func (s *MiddlewareServer) PutINode(ctx context.Context, in *pb.PutINodeRequest)
 
 func (s *MiddlewareServer) PutData(ctx context.Context, in *pb.PutDataRequest) (*pb.PutDataResponse, error) {
 	// 1. validate the client's signature first
-	if !ValidateDataCapsuleFileSystemBlock(in.Block) {
+	if s.EnableCrypto && !ValidateDataCapsuleFileSystemBlock(in.Block) {
 		return &pb.PutDataResponse{
 			Success: false,
 			Hash:    nil,
@@ -71,7 +70,7 @@ func (s *MiddlewareServer) PutData(ctx context.Context, in *pb.PutDataRequest) (
 
 	// 2. ensure that the client is in ACL of the referenced inode attached to
 	// todo: removed users putting junk data
-	if !s.validateFsBlock(in.Block, in.InodeHash) {
+	if s.EnableCrypto && !s.validateFsBlock(in.Block, in.InodeHash) {
 		return &pb.PutDataResponse{
 			Success: false,
 			Hash:    nil,
@@ -82,7 +81,7 @@ func (s *MiddlewareServer) PutData(ctx context.Context, in *pb.PutDataRequest) (
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	block := s.finalizeBlock(in.Block)
+	block := s.finalizeBlock(in.Block, s.DataSigningKey)
 	result, err := s.DataClient.Put(ctx, &pb.PutRequest{Block: block})
 	if err != nil {
 		panic(err)
@@ -95,14 +94,17 @@ func (s *MiddlewareServer) PutData(ctx context.Context, in *pb.PutDataRequest) (
 	}, nil
 }
 
-func (s *MiddlewareServer) finalizeBlock(fsBlock *pb.DataCapsuleFileSystemBlock) *pb.DataCapsuleBlock {
+func (s *MiddlewareServer) finalizeBlock(fsBlock *pb.DataCapsuleFileSystemBlock, key *rsa.PrivateKey) *pb.DataCapsuleBlock {
 	finalizedBlock := pb.DataCapsuleBlock{
 		PrevHash:  fsBlock.PrevHash,
 		Fs:        fsBlock,
-		Timestamp: 0,
-		Signature: nil,
+		Timestamp: time.Now().UnixNano(),
+		Signature: []byte{},
 	}
-	SignDataCapsuleBlock(&finalizedBlock, s.PrivateKey)
+
+	if s.EnableCrypto {
+		SignDataCapsuleBlock(&finalizedBlock, key)
+	}
 
 	return &finalizedBlock
 }

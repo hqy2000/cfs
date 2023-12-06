@@ -41,7 +41,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let data_capsule_addr = format!("{}:{}", server.address, server.port).parse()?;
         let data_capsule = MyDataCapsule {
             data: Arc::new(Mutex::new(DataCapsuleServerData::decode(fs::read(server.data_file).unwrap().as_slice()).unwrap())),
-            verifying_key: pkcs1v15::VerifyingKey::<Sha256>::read_public_key_pem_file(server.verifying_key).unwrap()
+            verifying_key: pkcs1v15::VerifyingKey::<Sha256>::read_public_key_pem_file(server.verifying_key).unwrap(),
+            enable_crypto: server.is_crypto_enabled
         };
         v.push(Server::builder()
             .tls_config(ServerTlsConfig::new().identity(identity.clone()))?

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"cfs/middleware/src/lib"
+	"cfs/middleware/src/lib/go_proto"
 	"crypto/rsa"
 	"crypto/x509"
-	"dcfs2/middleware/src/lib"
-	"dcfs2/middleware/src/lib/go_proto"
+	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"log"
@@ -14,12 +16,27 @@ import (
 )
 
 func main() {
-	lis, err := net.Listen("tcp", "loopback.hqy.moe:50060")
+	args := os.Args
+	if len(args) != 2 {
+		log.Fatalf("Usage: middleware [config file].")
+	}
+
+	var config Config
+	raw, err := os.ReadFile(args[1])
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(raw, &config)
+	if err != nil {
+		panic(err)
+	}
+
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", config.Address, config.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	creds, err := credentials.NewServerTLSFromFile("config/loopback.hqy.moe_fullchain.pem", "config/loopback.hqy.moe_privkey.pem")
+	creds, err := credentials.NewServerTLSFromFile(config.TLS.Certificate, config.TLS.PrivateKey)
 	if err != nil {
 		log.Fatalf("failed to load tls cert: %v", err)
 	}
@@ -27,11 +44,12 @@ func main() {
 	s := grpc.NewServer(grpc.Creds(creds))
 
 	go_proto.RegisterMiddlewareServer(s, &lib.MiddlewareServer{
-		InodeClient: connect("loopback.hqy.moe:50052"),
-		DataClient:  connect("loopback.hqy.moe:50051"),
-		PrivateKey:  loadPrivateKey("config/server_private.pem"),
+		InodeClient:     connect(config.InodeServer.Url, config.InodeServer.TLS.CA),
+		DataClient:      connect(config.DataServer.Url, config.InodeServer.TLS.CA),
+		InodeSigningKey: loadPrivateKey(config.InodeServer.SigningKey),
+		DataSigningKey:  loadPrivateKey(config.DataServer.SigningKey),
+		EnableCrypto:    config.IsCryptoEnabled,
 	})
-	log.Println(s.GetServiceInfo())
 	s.GetServiceInfo()
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
@@ -52,8 +70,8 @@ func loadPrivateKey(file string) *rsa.PrivateKey {
 	return key
 }
 
-func connect(addr string) go_proto.DataCapsuleClient {
-	creds, err := credentials.NewClientTLSFromFile("config/loopback.hqy.moe_fullchain.pem", "")
+func connect(addr string, ca string) go_proto.DataCapsuleClient {
+	creds, err := credentials.NewClientTLSFromFile(ca, "")
 	if err != nil {
 		log.Fatalf("failed to load tls cert: %v", err)
 	}
@@ -63,4 +81,28 @@ func connect(addr string) go_proto.DataCapsuleClient {
 		log.Fatalf("did not connect: %v", err)
 	}
 	return go_proto.NewDataCapsuleClient(conn)
+}
+
+type Config struct {
+	IsCryptoEnabled bool `json:"isCryptoEnabled"`
+	DataServer      struct {
+		Url        string `json:"url"`
+		SigningKey string `json:"signingKey"`
+		TLS        struct {
+			CA string `json:"ca"`
+		} `json:"tls"`
+	} `json:"dataServer"`
+	InodeServer struct {
+		Url        string `json:"url"`
+		SigningKey string `json:"signingKey"`
+		TLS        struct {
+			CA string `json:"ca"`
+		} `json:"tls"`
+	} `json:"inodeServer"`
+	Address string `json:"address"`
+	Port    int    `json:"port"`
+	TLS     struct {
+		PrivateKey  string `json:"privateKey"`
+		Certificate string `json:"certificate"`
+	} `json:"tls"`
 }

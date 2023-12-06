@@ -13,6 +13,7 @@ use crate::proto::data_capsule::data_capsule_server::DataCapsule;
 pub struct MyDataCapsule {
     pub data: Arc<Mutex<DataCapsuleServerData>>,
     pub verifying_key: VerifyingKey<Sha256>,
+    pub enable_crypto: bool,
 }
 
 #[tonic::async_trait]
@@ -29,7 +30,10 @@ impl DataCapsule for MyDataCapsule {
         println!("Got a put request: {:?}", request);
 
         let request = request.into_inner();
-        let block = request.block.unwrap();
+        let mut block = request.block.unwrap();
+        if self.enable_crypto {
+            block.validate(&self.verifying_key);
+        }
         let hash = block.hash();
 
         let mut mutex = self.data.lock().await;
