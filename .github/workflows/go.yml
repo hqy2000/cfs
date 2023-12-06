@@ -34,4 +34,4 @@ jobs:
         run: protoc -I ../proto --go_out=. --go-grpc_out=. ../proto/*.proto --experimental_allow_proto3_optional
 
       - name: Build
-        run: go build -v dcfs2/middleware/src/bin
+        run: go build -v cfs/middleware/src/bin
