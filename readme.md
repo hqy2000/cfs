@@ -2,7 +2,7 @@
 
 This repository contains the source code for CapsuleFS, a file system based on [DataCapsule](https://www2.eecs.berkeley.edu/Pubs/TechRpts/2020/EECS-2020-10.pdf).
 
-This README only contains instructions on how to deploy this file system. Please refer to our [project page](https://people.eecs.berkeley.edu/~kubitron/courses/cs262a-F23/index_projects.html) to learn more about our design.
+This README only contains instructions on how to deploy this file system. Please refer to our [page (Project #1)](https://people.eecs.berkeley.edu/~kubitron/courses/cs262a-F23/index_projects.html) to learn more about our design.
 
 ## Environment
 To compile and run this program, you'll need to install the following dependencies. Most of them should be available through your operating system's package manager.
